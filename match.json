@@ -1,4 +1,14 @@
 {
+  "timers": {
+    "pickWait": 90,
+    "readyUp": 90,
+    "readyStart": 10,
+    "forceStart": 15,
+    "timeout": 120,
+    "closeLobby": 30,
+    "abortLeniency": 15
+  },
+  "waitSong": 2382647,
   "tournament": "o!RT 2",
   "BO": 5,
   "teams": [

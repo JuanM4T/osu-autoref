@@ -19,7 +19,7 @@ const api = new nodesu.Client(config.apiKey);
 
 let channel, lobby;
 
-const BLUE = 0, RED = 1;
+const RED = 0, BLUE = 1;
 match.winningScore = Math.ceil(match.BO/2);
 match.score = [0, 0];
 match.picking = 0;
@@ -47,7 +47,7 @@ async function init() {
   try {
     await client.connect();
     console.log(chalk.bold.green("Connected to Bancho!"));
-    channel = await client.createLobby(`${match.tournament}: ${match.teams[BLUE].name} vs ${match.teams[RED].name}`);
+    channel = await client.createLobby(`${match.tournament}: ${match.teams[RED].name} vs ${match.teams[BLUE].name}`);
   } catch (err) {
     console.log(err);
     console.log(chalk.bold.red("Failed to create lobby"));
@@ -139,18 +139,18 @@ function createListeners() {
     }
    });
 
-  lobby.on("allPlayersReady", (obj) => {
-    lobby.startMatch(10);
+  lobby.on("allPlayersReady", () => {
+    lobby.startMatch(match.timers.readyStart);
   });
 
   lobby.on("matchFinished", (scores) => {
     if (auto) {
-      let s = {"Blue": 0, "Red": 0};
+      let scoreline = {"Blue": 0, "Red": 0};
       scores.forEach((score) => {
-        s[score.player.team] += score.pass * score.score;
+        scoreline[score.player.team] += score.score; //* score.pass not to count fails
       });
 
-      let diff = s["Blue"] - s["Red"];
+      let diff = scoreline["Blue"] - scoreline["Red"];
       if (diff > 0) {
         channel.sendMessage(`${match.teams[BLUE].name} wins by ${diff}`);
         match.score[BLUE]++;
@@ -212,7 +212,7 @@ function createListeners() {
           if (auto) promptPick(); 
           break;
         case 'picking':
-          match.picking = (m[1].toLowerCase() === "red" ? 1 : 0);
+          match.picking = (m[1].toLowerCase() === "red" ? 0 : 1);
           if (auto) promptPick();
           break;
         case 'ping':
