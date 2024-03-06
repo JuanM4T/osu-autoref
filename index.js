@@ -1,4 +1,3 @@
-// @ts-check
 const bancho = require('bancho.js');
 const chalk = require('chalk');
 const nodesu = require('nodesu');
