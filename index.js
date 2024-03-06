@@ -67,11 +67,14 @@ async function init() {
   const password = Math.random().toString(36).substring(8);
   await lobby.setPassword(password);
   await lobby.setMap(match.waitSong); //waiting song
+  await lobby.addRef(match.trustedPeople);
 
   console.log(chalk.bold.green("Lobby created!"));
   console.log(chalk.bold.cyan(`Name: ${lobby.name}, password: ${password}`));
   console.log(chalk.bold.cyan(`Multiplayer link: https://osu.ppy.sh/mp/${lobby.id}`));
   console.log(chalk.cyan(`Open in your irc client with "/join #mp_${lobby.id}"`));
+  console.log(chalk.yellow(`Match refs added: ${match.trustedPeople.join(', ')}`))
+
 
   lobby.setSettings(bancho.BanchoLobbyTeamModes.TeamVs, bancho.BanchoLobbyWinConditions.ScoreV2);
 
