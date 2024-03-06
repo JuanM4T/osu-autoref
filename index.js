@@ -20,8 +20,7 @@ const api = new nodesu.Client(config.apiKey);
 let channel, lobby;
 
 const RED = 0, BLUE = 1;
-const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, READY = 4;
-const PLAYING_MATCH = 8, TIMEOUT = 16;
+const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, READY = 4, PLAYING_MATCH = 8, TIMEOUT = 16;
 const matchWinningScore = Math.ceil(match.BO/2);
 let matchScore = [0, 0];
 let pickingTeam = 0;
@@ -29,7 +28,8 @@ let pickingTeam = 0;
 // turn on to keep track of scores
 // and ask players to pick maps
 let auto = false;
-/* let waitingForPick = false;
+/* old solution 
+let waitingForPick = false;
 let waitingForStart = false;
 let ready = false;
 let playingMatch = false;
@@ -38,10 +38,10 @@ let matchStatus = 0; //bitwise status
 
 // populate mappool with map info
 function initPool() {
-  return Promise.all(pool.map(async (b) => {
-    const info = (await api.beatmaps.getByBeatmapId(b.id))[0];
-    b.name = b.code + ': ' + info.artist + ' - ' + info.title + ' [' + info.version + ']';
-    console.log(chalk.dim(`Loaded ${info.title}`));
+  return Promise.all(pool.map(async (beatmap) => {
+    const beatmapInformation = (await api.beatmaps.getByBeatmapId(beatmap.id))[0];
+    beatmap.name = beatmap.code + ': ' + beatmapInformation.artist + ' - ' + beatmapInformation.title + ' [' + beatmapInformation.version + ']';
+    console.log(chalk.dim(`Loaded ${beatmapInformation.title}`));
   }));
 }
 
@@ -250,7 +250,11 @@ function createListeners() {
         case 'timeout':
           channel.sendMessage(`An additional ${match.timers.timeout}s of timeout have been given.`)
           channel.sendMessage("It will be added after the current timer ends.");
+          matchStatus |= TIMEOUT;
           break;
+        case 'abort':
+          await lobby.abortMatch();
+          channel.sendMessage("Match aborted manually.")
         default:
           console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
       }
@@ -262,6 +266,8 @@ function createListeners() {
       if (map){
         console.log(chalk.cyan(`Changing map to ${map}`));
         matchStatus &= WAITING_FOR_START;
+        await channel.sendMessage(`A map has been picked. You have ${match.timers.waitingForStart} to ready up.`);
+        lobby.startTimer(match.timers.waitingForStart);
     }}
   });
 }
@@ -276,6 +282,7 @@ async function close() {
   await lobby.closeLobby();
   await client.disconnect();
   console.log(chalk.cyan("Closed."));
+  process.exit(0);
 }
 
 init()
