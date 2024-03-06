@@ -20,6 +20,8 @@ const api = new nodesu.Client(config.apiKey);
 let channel, lobby;
 
 const RED = 0, BLUE = 1;
+const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, READY = 4;
+const PLAYING_MATCH = 8, TIMEOUT = 16;
 const matchWinningScore = Math.ceil(match.BO/2);
 let matchScore = [0, 0];
 let pickingTeam = 0;
@@ -27,10 +29,12 @@ let pickingTeam = 0;
 // turn on to keep track of scores
 // and ask players to pick maps
 let auto = false;
-let waitingForPick = false;
+/* let waitingForPick = false;
 let waitingForStart = false;
 let ready = false;
-let inPick = false;
+let playingMatch = false;
+let timeout = false; */
+let matchStatus = 0; //bitwise status
 
 // populate mappool with map info
 function initPool() {
@@ -122,7 +126,7 @@ function printScore() {
 function promptPick() {
   channel.sendMessage(`${match.teams[pickingTeam].name}, you have ${match.timers.pickWait} to pick the next map`);
   lobby.startTimer(match.timers.pickWait);
-  waitingForPick = true;
+  matchStatus &= WAITING_FOR_PICK;
 }
 
 // Respond to events occurring in lobby
@@ -147,6 +151,7 @@ function createListeners() {
 
   lobby.on("allPlayersReady", () => {
     lobby.startMatch(match.timers.readyStart);
+    matchStatus &= READY;
   });
 
   lobby.on("matchFinished", (scores) => {
@@ -186,14 +191,19 @@ function createListeners() {
   }); 
   lobby.on("timerEnded", async () => {
     if(auto){
-      if(waitingForPick){
+      if(timeout){
+        lobby.startTimer(match.timers.timeout);
+        matchStatus ^= timeout;
+      }
+      else if(waitingForPick){
         pickingTeam ^= 1;
         channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam]}`)
         promptPick();
       }
-      if(waitingForStart){
+      else if(waitingForStart && !ready){
         Console.log(chalk.magenta("Players aren't ready after the time has ran out. ") + chalk.yellow("Forcing start."));
         lobby.startMatch(match.timers.forceStart);
+        matchStatus &= PLAYING_MATCH;
       }
     }
   })
@@ -237,6 +247,10 @@ function createListeners() {
         case 'ping':
           channel.sendMessage("pong");
           break;
+        case 'timeout':
+          channel.sendMessage(`An additional ${match.timers.timeout}s of timeout have been given.`)
+          channel.sendMessage("It will be added after the current timer ends.");
+          break;
         default:
           console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
       }
@@ -247,8 +261,7 @@ function createListeners() {
       const map = setBeatmap(msg.message);
       if (map){
         console.log(chalk.cyan(`Changing map to ${map}`));
-        picking = false;
-        waitingForStart = true;
+        matchStatus &= WAITING_FOR_START;
     }}
   });
 }
