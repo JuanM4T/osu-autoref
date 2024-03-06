@@ -1,3 +1,4 @@
+// @ts-check
 const bancho = require('bancho.js');
 const chalk = require('chalk');
 const nodesu = require('nodesu');
@@ -20,13 +21,17 @@ const api = new nodesu.Client(config.apiKey);
 let channel, lobby;
 
 const RED = 0, BLUE = 1;
-match.winningScore = Math.ceil(match.BO/2);
-match.score = [0, 0];
-match.picking = 0;
+const matchWinningScore = Math.ceil(match.BO/2);
+let matchScore = [0, 0];
+let pickingTeam = 0;
 
 // turn on to keep track of scores
 // and ask players to pick maps
 let auto = false;
+let waitingForPick = false;
+let waitingForStart = false;
+let ready = false;
+let inPick = false;
 
 // populate mappool with map info
 function initPool() {
@@ -112,11 +117,13 @@ function setBeatmap(input, force=false) {
 }
 
 function printScore() {
-  channel.sendMessage(`${match.teams[0].name} ${match.score[0]} -- ${match.score[1]} ${match.teams[1].name}`);
+  channel.sendMessage(`${match.teams[0].name} ${matchScore[0]} -- ${matchScore[1]} ${match.teams[1].name}`);
 }
 
 function promptPick() {
-  channel.sendMessage(`${match.teams[match.picking].name}, pick the next map`);
+  channel.sendMessage(`${match.teams[pickingTeam].name}, you have ${match.timers.pickWait} to pick the next map`);
+  lobby.startTimer(match.timers.pickWait);
+  waitingForPick = true;
 }
 
 // Respond to events occurring in lobby
@@ -153,22 +160,22 @@ function createListeners() {
       let diff = scoreline["Blue"] - scoreline["Red"];
       if (diff > 0) {
         channel.sendMessage(`${match.teams[BLUE].name} wins by ${diff}`);
-        match.score[BLUE]++;
+        matchScore[BLUE]++;
       } else if (diff < 0) {
         channel.sendMessage(`${match.teams[RED].name} wins by ${-diff}`);
-        match.score[RED]++;
+        matchScore[RED]++;
       } else {
         channel.sendMessage("It was a tie!");
       }
 
-      match.picking = 1 - match.picking;
+      pickingTeam ^= 1;
       printScore();
 
-      if (match.score[BLUE] >= match.winningScore) {
+      if (matchScore[BLUE] >= matchWinningScore) {
         channel.sendMessage(`${match.teams[BLUE].name} has won the match!`);
-      } else if (match.score[RED] >= match.winningScore) {
+      } else if (matchScore[RED] >= matchWinningScore) {
         channel.sendMessage(`${match.teams[RED].name} has won the match!`);
-      } else if (match.score[BLUE] === match.winningScore - 1 && match.score[RED] === match.winningScore - 1) {
+      } else if (matchScore[BLUE] === matchWinningScore - 1 && matchScore[RED] === matchWinningScore - 1) {
         channel.sendMessage("It's time for the tiebreaker!");
 
         // bug: after match ends, need to wait a bit before changing map
@@ -177,7 +184,20 @@ function createListeners() {
         promptPick();
       }
     }    
-  });
+  }); 
+  lobby.on("timerEnded", async () => {
+    if(auto){
+      if(waitingForPick){
+        pickingTeam ^= 1;
+        channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam]}`)
+        promptPick();
+      }
+      if(waitingForStart){
+        Console.log(chalk.magenta("Players aren't ready after the time has ran out. ") + chalk.yellow("Forcing start."));
+        lobby.startMatch(match.timers.forceStart);
+      }
+    }
+  })
 
   channel.on("message", async (msg) => {
     // All ">" commands must be sent by host
@@ -202,8 +222,8 @@ function createListeners() {
           if (map) console.log(chalk.cyan(`Changing map to ${map}`));
           break;
         case 'score':
-          match.score[0] = parseInt(m[1]);
-          match.score[1] = parseInt(m[2]);
+          matchScore[0] = parseInt(m[1]);
+          matchScore[1] = parseInt(m[2]);
           printScore();
           break;
         case 'auto':
@@ -212,7 +232,7 @@ function createListeners() {
           if (auto) promptPick(); 
           break;
         case 'picking':
-          match.picking = (m[1].toLowerCase() === "red" ? 0 : 1);
+          pickingTeam = (m[1].toLowerCase() === "red" ? 0 : 1);
           if (auto) promptPick();
           break;
         case 'ping':
@@ -224,10 +244,13 @@ function createListeners() {
     } 
    
     // people on the picking team can choose just by saying the map name/code
-    if (auto && match.teams[match.picking].members.includes(msg.user.ircUsername)) {
+    if (auto && match.teams[pickingTeam].members.includes(msg.user.ircUsername)) {
       const map = setBeatmap(msg.message);
-      if (map) console.log(chalk.cyan(`Changing map to ${map}`));
-    }
+      if (map){
+        console.log(chalk.cyan(`Changing map to ${map}`));
+        picking = false;
+        waitingForStart = true;
+    }}
   });
 }
 
