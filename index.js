@@ -66,7 +66,7 @@ async function init() {
 
   const password = Math.random().toString(36).substring(8);
   await lobby.setPassword(password);
-  await lobby.setMap(1262832); //hitorigoto dayo
+  await lobby.setMap(match.waitSong); //waiting song
 
   console.log(chalk.bold.green("Lobby created!"));
   console.log(chalk.bold.cyan(`Name: ${lobby.name}, password: ${password}`));
@@ -191,9 +191,9 @@ function createListeners() {
   }); 
   lobby.on("timerEnded", async () => {
     if(auto){
-      if(timeout){
+      if(matchStatus & TIMEOUT){
         lobby.startTimer(match.timers.timeout);
-        matchStatus ^= timeout;
+        matchStatus ^= TIMEOUT;
       }
       else if(waitingForPick){
         pickingTeam ^= 1;
