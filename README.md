@@ -17,13 +17,14 @@ Uses bancho.js by ThePoon.
 - Auto start matches when players are ready
 - Auto manages timings
 - Gives ref to staff like streamers, commentators, etc. automatically!
-- Every match starts with WHAT YOU CHOOSE (touhou banger as default)! 
+- Every match starts with WHAT YOU CHOOSE (touhou banger as default)!
+- !panic command that pings referees in discord
  
 ## Configuration
 Before running osu!autoref, you'll need to fill out some configuration.
 
 ### config.json
-Create a file `config.json`. You can copy the template file `config.example.json`. You will need to add your username, [IRC password](https://osu.ppy.sh/p/irc), and osu! [API key](https://osu.ppy.sh/p/api).
+Create a file `config.json`. You can copy the template file `config.example.json`. You will need to add your username, [IRC password](https://osu.ppy.sh/p/irc), and osu! [API key](https://osu.ppy.sh/p/api). You also need to add discord webhook url and referee role ID. (You might need to enable developer mode in Discord to get the role ID. Research online on how to do so.)
 
 ### pool.json
 Load the mappool into this file. The format should be self-explanatory from the example pool. It requires only the map code (NM2, HR3, DT1, etc) and the ID of the map. The bot will infer the mods based on the map code, but you can (optionally) explicitly provide the mod via the "mod" field.
