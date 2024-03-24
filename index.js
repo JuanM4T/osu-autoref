@@ -117,9 +117,9 @@ function setBeatmap(input, force = false) {
     if (map.mod) {
       mod = map.mod; // if mod explicitly provided (not normal)
     } else if (['HD', 'HR', 'DT'].includes(mapType)) {
-      mod = mapType;
+      mod = mapType + ' NF';
     } else if (mapType === 'NM') {
-      mod = 'None';
+      mod = 'NF';
     }
 
     channel.sendMessage("Selecting " + map.name);
@@ -142,7 +142,7 @@ function printScore() {
 function promptPick() {
   channel.sendMessage(`${match.teams[pickingTeam].name}, you have ${match.timers.pickWait} to pick the next map`);
   lobby.startTimer(match.timers.pickWait);
-  matchStatus &= WAITING_FOR_PICK;
+  matchStatus = WAITING_FOR_PICK;
 }
 
 /**
@@ -205,7 +205,7 @@ function handlePlayerLeave() {
       if (currentTime - matchStartedAt < abortLeniency) {
         lobby.abortMatch();
         channel.sendMessage("Match aborted due to player leaving.");
-        matchStatus &= WAITING_FOR_START;
+        matchStatus = WAITING_FOR_START;
       }
     }
   }
@@ -234,8 +234,8 @@ function createListeners() {
 
     if (auto && isBitSet(matchStatus, WAITING_FOR_START)) {
       console.log(chalk.yellow("Player joined and auto is enabled. Starting timer."));
-      printScore(); channel.sendMessage("You have " + match.timers.waitingForStart + " to ready up.");
-      lobby.startTimer(match.timers.waitingForStart);
+      printScore(); channel.sendMessage("You have " + match.timers.readyUp + " to ready up.");
+      lobby.startTimer(match.timers.readyUp);
     }
   });
 
@@ -349,8 +349,8 @@ function createListeners() {
         console.log(chalk.cyan(`Changing map to ${map}`));
         lobby.abortTimer();
         matchStatus &= WAITING_FOR_START;
-        await channel.sendMessage(`A map has been picked. You have ${match.timers.waitingForStart} to ready up.`);
-        lobby.startTimer(match.timers.waitingForStart);
+        await channel.sendMessage(`A map has been picked. You have ${match.timers.readyUp} to ready up.`);
+        lobby.startTimer(match.timers.readyUp);
       }
     }
   });
