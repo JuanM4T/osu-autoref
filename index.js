@@ -266,7 +266,7 @@ function createListeners() {
       }
       else if (isBitSet(matchStatus, WAITING_FOR_PICK)) {
         pickingTeam ^= 1; // switch picking team
-        channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam]}`)
+        channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam].name} to pick a map. ` + `The other team will pick now.`)
         promptPick();
       }
       else if (isBitSet(matchStatus, WAITING_FOR_START)) {
