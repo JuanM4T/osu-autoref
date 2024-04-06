@@ -356,7 +356,7 @@ function createListeners() {
     }
 
     // people on the picking team can choose just by saying the map name/code
-    if (auto && replaceSpacesWithUnderscores(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
+    if (auto && replaceSpacesWithUnderscoresInArray(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
       const map = setBeatmap(msg.message);
       if (map) {
         console.log(chalk.cyan(`Changing map to ${map}`));
