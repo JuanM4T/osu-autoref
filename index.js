@@ -210,6 +210,19 @@ function handlePlayerLeave() {
     }
   }
 }
+/**
+ * Replaces all spaces in each string of an array with underscores.
+ * If a string doesn't contain any spaces, the original string is returned.
+ * The function uses the `replaceSpacesWithUnderscores` function to process each string.
+ *
+ * @param {Array<string>} arr - The array of strings to process.
+ * @returns {Array<string>} The processed array with spaces in strings replaced by underscores.
+ */
+function replaceSpacesWithUnderscoresInArray(arr) {
+  return arr.map(function(str) {
+    return replaceSpacesWithUnderscores(str);
+  });
+}
 
 /**
  * Create event listeners for various lobby and chat events.
@@ -343,7 +356,7 @@ function createListeners() {
     }
 
     // people on the picking team can choose just by saying the map name/code
-    if (auto && match.teams[pickingTeam].members.includes(msg.user.ircUsername)) {
+    if (auto && replaceSpacesWithUnderscores(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
       const map = setBeatmap(msg.message);
       if (map) {
         console.log(chalk.cyan(`Changing map to ${map}`));
