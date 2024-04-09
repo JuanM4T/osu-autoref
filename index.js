@@ -223,6 +223,14 @@ function replaceSpacesWithUnderscoresInArray(arr) {
     return replaceSpacesWithUnderscores(str);
   });
 }
+/**
+ * Replaces all spaces in a string with underscores.
+ * @param {string} str - The string to process.
+ * @returns {string} The processed string with spaces replaced by underscores.
+ */
+function replaceSpacesWithUnderscores(str) {
+  return str.replace(/ /g, '_');
+}
 
 /**
  * Create event listeners for various lobby and chat events.
