@@ -57,7 +57,7 @@ When you're ready to begin the match, set the team who picks first, and enable a
 
 Give your players a break using the "timeout" command! (default is 2 minutes):
 ```py
->abort
+>timeout
 ```
 
 If you need to override which map is chosen, you can use the "map" command:
