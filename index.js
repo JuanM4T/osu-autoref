@@ -316,6 +316,8 @@ function createListeners() {
             await lobby.invitePlayer(p);
           }
           break;
+        case 'forcepick':
+          
         case 'map':
           const map = setBeatmap(m.slice(1).join(' '), true);
           if (map) console.log(chalk.cyan(`Changing map to ${map}`));
@@ -356,7 +358,7 @@ function createListeners() {
       auto = false;
       channel.sendMessage("Panic command received. A ref will be checking in shortly.")
       console.log(chalk.red.bold("Something has gone really wrong!\n")+"Someone has executed the !panic command and "+chalk.yellow("auto mode has been disabled"));
-      await webhook.send(`<@${config.discord.refRole}>, someone has executed the !panic command on match https://osu.ppy.sh/mp/${lobby.id}.\n`+
+      await webhook.send(`<@${config.discord.refereeRole}>, someone has executed the !panic command on match https://osu.ppy.sh/mp/${lobby.id}.\n`+
       "join using ` /join #mp_"+lobby.id+"` The host is " + config.username + ` and added refs are ${match.trustedPeople.toString()}.`)
       if(matchStatus & PLAYING_MATCH == 0){
         lobby.abortTimer();
