@@ -272,10 +272,7 @@ function createListeners() {
   });
   lobby.on("matchFinished", (scores) => {
     if (auto) {
-      lastPickResult(scores);
-      printScore();
-      pickingTeam ^= 1; // switch picking team
-      checkScoreAndProceed();
+      pickCycle(scores);
     }
   });
   lobby.on("timerEnded", async () => {
@@ -317,7 +314,9 @@ function createListeners() {
           }
           break;
         case 'forcepick':
-          
+          const forced = setBeatmap(m.slice(1).join(' '));
+          if (forced) pick(forced);
+          break;
         case 'map':
           const map = setBeatmap(m.slice(1).join(' '), true);
           if (map) console.log(chalk.cyan(`Changing map to ${map}`));
@@ -349,6 +348,8 @@ function createListeners() {
           await lobby.abortMatch();
           channel.sendMessage("Match aborted manually.")
           break;
+        case 'bans':
+
         default:
           console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
       }
@@ -369,11 +370,7 @@ function createListeners() {
     if (auto && replaceSpacesWithUnderscoresInArray(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
       const map = setBeatmap(msg.message);
       if (map) {
-        console.log(chalk.cyan(`Changing map to ${map}`));
-        lobby.abortTimer();
-        matchStatus &= WAITING_FOR_START;
-        await channel.sendMessage(`A map has been picked. You have ${match.timers.readyUp} to ready up.`);
-        lobby.startTimer(match.timers.readyUp);
+        await pick(map);
       }
     }
   });
@@ -388,6 +385,21 @@ function createListeners() {
 rl.on('line', (input) => {
   channel.sendMessage(input);
 });
+
+async function pick(map) {
+  console.log(chalk.cyan(`Changing map to ${map}`));
+  lobby.abortTimer();
+  matchStatus &= WAITING_FOR_START;
+  await channel.sendMessage(`A map has been picked. You have ${match.timers.readyUp} to ready up.`);
+  lobby.startTimer(match.timers.readyUp);
+}
+
+function pickCycle(scores) {
+  lastPickResult(scores);
+  printScore();
+  pickingTeam ^= 1; // switch picking team
+  checkScoreAndProceed();
+}
 
 /**
  * Close the lobby and disconnect from the Bancho server, and exits.
