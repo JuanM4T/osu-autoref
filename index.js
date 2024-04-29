@@ -22,9 +22,11 @@ const webhook = new WebhookClient({ url: config.discord.webhookLink })
 let channel, lobby;
 
 const RED = 0, BLUE = 1;
-const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, PLAYING_MATCH = 4, TIMEOUT = 8;
+const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, PLAYING_MATCH = 4, TIMEOUT = 8, WAITING_FOR_BAN = 16;
 const matchWinningScore = Math.ceil(match.BO / 2);
 let matchScore = [0, 0];
+let bans = [[], []];
+let picks = [[], []];
 let pickingTeam = 0;
 
 // turn on to keep track of scores
@@ -348,8 +350,36 @@ function createListeners() {
           await lobby.abortMatch();
           channel.sendMessage("Match aborted manually.")
           break;
-        case 'bans':
-
+        case 'bans'://ban phase start
+          if (auto) {
+            console.log(chalk.yellow("Ban phase started"));
+            channel.sendMessage("Ban phase started. You have " + match.timers.banTime + " to ban a map.");
+            lobby.startTimer(match.timers.banTime);
+            matchStatus = WAITING_FOR_BAN;
+          }
+        case 'remind':
+          switch (m[1]) {
+            case 'maps': //read out loud all picked maps
+              channel.sendMessage("Picked maps by red team: " + picks[0].join(", "));
+              channel.sendMessage("Picked maps by blue team: " + picks[1].join(", "));
+              break;
+            case 'bans':
+              channel.sendMessage("Bans by red team: " + bans[0].join(", "));
+              channel.sendMessage("Bans by blue team: " + bans[1].join(", "));
+              break;
+            case 'score':
+              printScore();
+              break;
+            case 'maps'://maps left
+              let maps = pool.map((map) => map.code);
+              let pickedMaps = picks[0].concat(picks[1]);
+              let remainingMaps = maps.filter((map) => !pickedMaps.includes(map));
+              channel.sendMessage("Maps left: " + remainingMaps.join(", "));
+              break;
+            default: //need arguments
+              console.log(chalk.red("Invalid arguments for remind command"));
+          }
+          break;
         default:
           console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
       }
@@ -373,7 +403,11 @@ function createListeners() {
         await pick(map);
       }
     }
-  });
+  // people on the banning team can ban just by saying the map name/code
+  if (matchStatus & WAITING_FOR_BAN != 0 && replaceSpacesWithUnderscoresInArray(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
+    bans[pickingTeam].push(msg.message);
+  }
+});
 }
 
 /**
