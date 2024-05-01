@@ -374,9 +374,8 @@ function createListeners() {
 					if (auto) {
 						if (m[1] === 'red') banningTeam = RED; else banningTeam = BLUE;
 						console.log(chalk.yellow("Ban phase started"));
-						channel.sendMessage("Ban phase started. " + match.teams[banningTeam] + ", you have " + match.timers.banTime + " to ban a map.");
-						lobby.startTimer(match.timers.banTime);
-						matchStatus = WAITING_FOR_BAN;
+						channel.sendMessage("Ban phase started.");
+						promptBan();
 					}
 				case 'remind':
 					switch (m[1]) {
