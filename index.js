@@ -27,6 +27,8 @@ const matchWinningScore = Math.ceil(match.BO / 2);
 let matchScore = [0, 0];
 let bans = [[], []];
 let picks = [[], []];
+let bansLeft = match.ban.perTeam * 2;
+let firstBan = 0;
 let pickingTeam = 0;
 
 // turn on to keep track of scores
@@ -352,14 +354,15 @@ function createListeners() {
           break;
         case 'bans'://ban phase start
           if (auto) {
+            if (m[1]==='red') banningTeam = RED; else banningTeam = BLUE;
             console.log(chalk.yellow("Ban phase started"));
-            channel.sendMessage("Ban phase started. You have " + match.timers.banTime + " to ban a map.");
+            channel.sendMessage("Ban phase started. " + match.teams[banningTeam] + ", you have " + match.timers.banTime + " to ban a map.");
             lobby.startTimer(match.timers.banTime);
             matchStatus = WAITING_FOR_BAN;
           }
         case 'remind':
           switch (m[1]) {
-            case 'maps': //read out loud all picked maps
+            case 'picks': //read out loud all picked maps
               channel.sendMessage("Picked maps by red team: " + picks[0].join(", "));
               channel.sendMessage("Picked maps by blue team: " + picks[1].join(", "));
               break;
@@ -377,7 +380,7 @@ function createListeners() {
               channel.sendMessage("Maps left: " + remainingMaps.join(", "));
               break;
             default: //need arguments
-              console.log(chalk.red("Invalid arguments for remind command"));
+              console.log(chalk.red("Invalid arguments for remind command. Available arguments: picks, maps, bans, score"));
           }
           break;
         default:
@@ -405,7 +408,7 @@ function createListeners() {
     }
   // people on the banning team can ban just by saying the map name/code
   if (matchStatus & WAITING_FOR_BAN != 0 && replaceSpacesWithUnderscoresInArray(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
-    bans[pickingTeam].push(msg.message);
+    processBan(msg);
   }
 });
 }
@@ -420,6 +423,22 @@ rl.on('line', (input) => {
   channel.sendMessage(input);
 });
 
+function processBan(msg) {
+  lobby.abortTimer();
+  bansLeft--;
+  bans[pickingTeam].push(msg.message);
+  channel.sendMessage(`Map ${msg.message} has been banned by ${match.teams[pickingTeam].name}. ${bansLeft} bans left.`);
+  if (bansLeft > 0 && (!match.ban.spanishBans || bansLeft % 2 != 0)) {
+      channel.sendMessage(`Next ban will be from ${match.teams[pickingTeam].name}`);
+      banCycle(); // switch banning team
+      promptBan();
+  }
+}
+
+function banCycle() {
+  
+}
+
 async function pick(map) {
   console.log(chalk.cyan(`Changing map to ${map}`));
   lobby.abortTimer();
@@ -433,6 +452,13 @@ function pickCycle(scores) {
   printScore();
   pickingTeam ^= 1; // switch picking team
   checkScoreAndProceed();
+}
+
+function promptBan() {
+  channel.sendMessage(`${match.teams[banningTeam].name}, you have ${match.timers.banTime} to ban a map.`);
+  lobby.startTimer(match.timers.banTime);
+  matchStatus = WAITING_FOR_BAN;
+
 }
 
 /**
