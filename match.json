@@ -1,0 +1,27 @@
+{
+  "timers": {
+    "pickWait": 90,
+    "readyUp": 90,
+    "readyStart": 10,
+    "forceStart": 15,
+    "timeout": 120,
+    "closeLobby": 30,
+    "abortLeniency": 15,
+    "banTime": 90
+  },
+  "ban": {
+    "format": "ABBA",
+    "spanishBans": true,
+    "spanishPicksBeforeBan": 4,
+    "perTeam": 2
+  },
+  "waitSong": 4578992,
+  "trustedPeople": ["Furina"],
+  "tournament": "DI",
+  "BO": 13,
+  "teams": [
+    {"name": "Necesito ayuda :joy:", "members": ["ESCRUPULILLO", "cirno whatsapp"]},
+    {"name": "hmm'", "members": ["Lisko", "Welter"]}
+  ]
+}
+
