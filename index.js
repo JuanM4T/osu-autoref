@@ -349,10 +349,7 @@ function createListeners() {
 					printScore();
 					break;
 				case 'auto':
-					auto = (m[1] === 'on');
-					channel.sendMessage("Auto referee is " + (auto ? "ON" : "OFF"));
-					channel.sendMessage("Remember to use '!panic' if there's any problem throughout (lobby breaking ones). Don't abuse it.");
-					if (auto) promptPick();
+					autoToggle(msg);
 					break;
 				case 'picking':
 					pickingTeam = (m[1].toLowerCase() === "red" ? 0 : 1);
@@ -370,7 +367,7 @@ function createListeners() {
 					await lobby.abortMatch();
 					channel.sendMessage("Match aborted manually.")
 					break;
-				case 'bans'://ban phase start
+				case 'banning'://ban phase start
 					if (auto) {
 						if (m[1] === 'red') banningTeam = RED; else banningTeam = BLUE;
 						console.log(chalk.yellow("Ban phase started"));
@@ -378,27 +375,7 @@ function createListeners() {
 						promptBan();
 					}
 				case 'remind':
-					switch (m[1]) {
-						case 'picks': //read out loud all picked maps
-							channel.sendMessage("Picked maps by red team: " + picks[0].join(", "));
-							channel.sendMessage("Picked maps by blue team: " + picks[1].join(", "));
-							break;
-						case 'bans':
-							channel.sendMessage("Bans by red team: " + bans[0].join(", "));
-							channel.sendMessage("Bans by blue team: " + bans[1].join(", "));
-							break;
-						case 'score':
-							printScore();
-							break;
-						case 'maps'://maps left
-							let maps = pool.map((map) => map.code);
-							let pickedMaps = picks[0].concat(picks[1]);
-							let remainingMaps = maps.filter((map) => !pickedMaps.includes(map));
-							channel.sendMessage("Maps left: " + remainingMaps.join(", "));
-							break;
-						default: //need arguments
-							console.log(chalk.red("Invalid arguments for remind command. Available arguments: picks, maps, bans, score"));
-					}
+					remindOptions(m);
 					break;
 				default:
 					console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
@@ -443,6 +420,37 @@ rl.on('line', (input) => {
 	channel.sendMessage(input);
 });
 
+function remindOptions(m) {
+	switch (m[1]) {
+		case 'picks': //read out loud all picked maps
+			channel.sendMessage("Picked maps by " +  match.teams[RED].name + ": "  + picks[RED].join(", "));
+			channel.sendMessage("Picked maps by " +  match.teams[BLUE].name + ": " + picks[BLUE].join(", "));
+			break;
+		case 'bans':
+			channel.sendMessage("Maps banned by " +  match.teams[BLUE].name + ": " + bans[0].join(", "));
+			channel.sendMessage("Maps banned by " +  match.teams[BLUE].name + ": " + bans[1].join(", "));
+			break;
+		case 'score':
+			printScore();
+			break;
+		case 'maps': //maps left
+			let maps = pool.map((map) => map.code);
+			let pickedMaps = picks[0].concat(picks[1]);
+			let remainingMaps = maps.filter((map) => !pickedMaps.includes(map));
+			channel.sendMessage("Maps left: " + remainingMaps.join(", "));
+			break;
+		default: //need arguments
+			console.log(chalk.red("Invalid arguments for remind command. Available arguments: picks, maps, bans, score"));
+	}
+}
+
+function autoToggle(m, force=false) {
+	auto = (m[1] === 'on' || force);
+	channel.sendMessage("Auto referee is " + (auto ? "ON" : "OFF"));
+	channel.sendMessage("Remember to use '!panic' if there's any problem throughout (lobby breaking ones). Don't abuse it.");
+	if (auto) promptPick();
+}
+
 function processBan(msg) {
 	lobby.abortTimer();
 	bansLeft--;
@@ -453,7 +461,17 @@ function processBan(msg) {
 		if((!match.ban.spanishBans || bansLeft % 2 != 0)){
 			channel.sendMessage(`Next ban will be from ${match.teams[pickingTeam].name}`); // switch banning team
 			promptBan();
+		} else{
+			console.log("Proceeding with picks. Will ban again after " + match.ban.spanishPicksBeforeBan + " picks.");
+			channel.sendMessage("1st part of the ban phase is over.");
+			autoToggle("", true);
+			remindOptions([,"bans"]);
 		}
+	} else{
+		console.log("Proceeding with picks.");
+		channel.sendMessage("Ban phase is over.")
+		autoToggle("", true);
+		remindOptions([,"bans"]);
 	}
 }
 
