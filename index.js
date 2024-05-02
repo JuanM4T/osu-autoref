@@ -427,8 +427,8 @@ function remindOptions(m) {
 			channel.sendMessage("Picked maps by " +  match.teams[BLUE].name + ": " + picks[BLUE].join(", "));
 			break;
 		case 'bans':
-			channel.sendMessage("Maps banned by " +  match.teams[BLUE].name + ": " + bans[0].join(", "));
-			channel.sendMessage("Maps banned by " +  match.teams[BLUE].name + ": " + bans[1].join(", "));
+			channel.sendMessage("Maps banned by " +  match.teams[RED].name + ": " + bans[RED].join(", "));
+			channel.sendMessage("Maps banned by " +  match.teams[BLUE].name + ": " + bans[BLUE].join(", "));
 			break;
 		case 'score':
 			printScore();
