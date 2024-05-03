@@ -331,21 +331,24 @@ function createListeners() {
 				case 'close':
 					await close();
 					break;
-				case 'invite':
+				case 'invite': {
 					const players = match.teams[RED].members.concat(match.teams[RED].members);
 					for (const p of players) {
 						// intentionally fire these synchronously
 						await lobby.invitePlayer(p);
 					}
 					break;
-				case 'forcepick':
+				}
+				case 'forcepick': {
 					const forced = setBeatmap(m.slice(1).join(' '));
 					if (forced) pick(forced);
 					break;
-				case 'map':
+				}
+				case 'map': {
 					const map = setBeatmap(m.slice(1).join(' '), true);
 					if (map) console.log(chalk.cyan(`Changing map to ${map}`));
 					break;
+				}
 				case 'score':
 					matchScore[RED] = parseInt(m[1]);
 					matchScore[BLUE] = parseInt(m[2]);
@@ -377,6 +380,7 @@ function createListeners() {
 						channel.sendMessage("Ban phase started.");
 						promptBan();
 					}
+					break;
 				case 'remind':
 					remindOptions(m[1]);
 					break;
@@ -436,17 +440,19 @@ function remindOptions(m) {
 		case 'score':
 			printScore();
 			break;
-		case 'maps': //maps left
+		case 'maps': { //maps left
 			let maps = pool.map((map) => map.code);
 			let pickedMaps = picks[0].concat(picks[1]);
 			let remainingMaps = maps.filter((map) => !pickedMaps.includes(map));
 			channel.sendMessage("Maps left: " + remainingMaps.join(", "));
 			break;
+		}
 		case 'all':
 			remindOptions('picks');
 			remindOptions('bans');
 			remindOptions('score');
 			remindOptions('maps');
+			break;
 		default: //need arguments
 			console.log(chalk.red("Invalid arguments for remind command. Available arguments: picks, maps, bans, score"));
 	}
@@ -522,7 +528,7 @@ async function close() {
 	console.log(chalk.cyan("Closing..."));
 	rl.close();
 	await lobby.closeLobby();
-	await client.disconnect();
+	client.disconnect();
 	console.log(chalk.cyan("Closed."));
 	process.exit(0);
 }
