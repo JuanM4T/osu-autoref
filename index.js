@@ -22,7 +22,8 @@ const webhook = new WebhookClient({ url: config.discord.webhookLink })
 let channel, lobby;
 
 const RED = 0, BLUE = 1;
-const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, PLAYING_MATCH = 4, TIMEOUT = 8, WAITING_FOR_BAN = 16, TIMER_RAN_OUT_WHILE_CHOOSING_SOMETHING = 32;
+const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, PLAYING_MATCH = 4, TIMEOUT = 8;
+const WAITING_FOR_BAN = 16, TIMER_RAN_OUT_WHILE_PICKING = 32, TIMER_RAN_OUT_WHILE_BANNING = 64;
 const matchWinningScore = Math.ceil(match.BO / 2);
 let matchScore = [0, 0];
 let bans = [[], []];
@@ -32,6 +33,7 @@ let firstBan = 0;
 let banningTeam = 0;
 let pickingTeam = 0;
 let banOrder = match.ban.format.split("").reverse().join(""); //hack
+let matchStartedAt;
 
 // turn on to keep track of scores
 // and ask players to pick maps
@@ -288,7 +290,7 @@ function createListeners() {
 	lobby.on("matchStarted", () => {
 		console.log(chalk.green("Match started!"));
 		matchStatus &= PLAYING_MATCH;
-		const matchStartedAt = Date.now();
+		matchStartedAt = Date.now();
 	});
 	lobby.on("matchFinished", (scores) => {
 		if (auto) {
@@ -297,7 +299,7 @@ function createListeners() {
 			else promptBan();
 		}
 	});
-	lobby.on("timerEnded", async () => {
+	lobby.on("timerEnded", () => {
 		if (auto) {
 			if (isBitSet(matchStatus, TIMEOUT)) {
 				console.log(chalk.magenta("Timeout given"));
@@ -307,6 +309,7 @@ function createListeners() {
 			else if (isBitSet(matchStatus, WAITING_FOR_PICK)) {
 				pickingTeam ^= 1; // switch picking team
 				channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam].name} to pick a map. ` + `The other team will pick now.`)
+				matchStatus |= TIMER_RAN_OUT_WHILE_PICKING;
 				promptPick();
 			}
 			else if (isBitSet(matchStatus, WAITING_FOR_START)) {
@@ -500,7 +503,8 @@ async function pick(map) {
 function pickCycle(scores) {
 	lastPickResult(scores);
 	printScore();
-	pickingTeam ^= 1; // switch picking team
+	if(isBitSet(matchStatus, TIMER_RAN_OUT_WHILE_PICKING)) pickingTeam ^= 1; // switch picking team
+	matchStatus &= ~TIMER_RAN_OUT_WHILE_PICKING;
 	checkScoreAndProceed();
 }
 
