@@ -22,7 +22,7 @@ const webhook = new WebhookClient({ url: config.discord.webhookLink })
 let channel, lobby;
 
 const RED = 0, BLUE = 1;
-const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, PLAYING_MATCH = 4, TIMEOUT = 8, WAITING_FOR_BAN = 16;
+const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, PLAYING_MATCH = 4, TIMEOUT = 8, WAITING_FOR_BAN = 16, TIMER_RAN_OUT_WHILE_CHOOSING_SOMETHING = 32;
 const matchWinningScore = Math.ceil(match.BO / 2);
 let matchScore = [0, 0];
 let bans = [[], []];
@@ -394,7 +394,7 @@ function createListeners() {
 		}
 
 		// people on the picking team can choose just by saying the map name/code
-		if (auto && replaceSpacesWithUnderscoresInArray(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
+		if (isBitSet(matchStatus, WAITING_FOR_PICK) && auto && replaceSpacesWithUnderscoresInArray(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
 			const map = setBeatmap(msg.message);
 			if (map) {
 				matchStatus &= ~TIMEOUT; // remove timeout flag
@@ -403,7 +403,7 @@ function createListeners() {
 			}
 		}
 		// people on the banning team can ban just by saying the map name/code
-		if (matchStatus & WAITING_FOR_BAN != 0 && replaceSpacesWithUnderscoresInArray(match.teams[banningTeam].members).includes(msg.user.ircUsername)) {
+		if (isBitSet(matchStatus, WAITING_FOR_BAN) && auto && replaceSpacesWithUnderscoresInArray(match.teams[banningTeam].members).includes(msg.user.ircUsername)) {
 			const map = findMap(msg.message)
 			if (map) processBan(map.code);
 		}
@@ -453,11 +453,15 @@ function autoToggle(m, force=false) {
 	auto = (m[1] === 'on' || force);
 	channel.sendMessage("Auto referee is " + (auto ? "ON" : "OFF"));
 	channel.sendMessage("Remember to use '!panic' if there's any problem throughout (lobby breaking ones). Don't abuse it.");
-	if (auto) promptPick();
+	if (auto) 
+		if (bansLeft > 1 && (!match.ban.spanishBans || picks[0].length + picks[1].length != match.ban.spanishPicksBeforeBan)) 
+		promptBan();
+		else promptPick();
 }
 
 function processBan(msg) {
 	lobby.abortTimer();
+	if(bansLeft == match.ban.perTeam * 2) firstBan = banningTeam;
 	bansLeft--;
 	bans[pickingTeam].push(msg.message);
 	channel.sendMessage(`Map ${msg.message} has been banned by ${match.teams[pickingTeam].name}. ${bansLeft} ban` + (bansLeft == 1 ? "" : `s`) + ` left.`);
@@ -469,7 +473,7 @@ function processBan(msg) {
 		} else{
 			console.log("Proceeding with picks. Will ban again after " + match.ban.spanishPicksBeforeBan + " picks.");
 			channel.sendMessage("1st part of the ban phase is over.");
-			autoToggle("", true);
+			promptPick();
 			remindOptions("bans");
 		}
 	} else{
