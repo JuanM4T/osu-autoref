@@ -375,7 +375,7 @@ function createListeners() {
 						promptBan();
 					}
 				case 'remind':
-					remindOptions(m);
+					remindOptions(m[1]);
 					break;
 				default:
 					console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
@@ -421,7 +421,7 @@ rl.on('line', (input) => {
 });
 
 function remindOptions(m) {
-	switch (m[1]) {
+	switch (m) {
 		case 'picks': //read out loud all picked maps
 			channel.sendMessage("Picked maps by " +  match.teams[RED].name + ": "  + picks[RED].join(", "));
 			channel.sendMessage("Picked maps by " +  match.teams[BLUE].name + ": " + picks[BLUE].join(", "));
@@ -439,6 +439,11 @@ function remindOptions(m) {
 			let remainingMaps = maps.filter((map) => !pickedMaps.includes(map));
 			channel.sendMessage("Maps left: " + remainingMaps.join(", "));
 			break;
+		case 'all':
+			remindOptions('picks');
+			remindOptions('bans');
+			remindOptions('score');
+			remindOptions('maps');
 		default: //need arguments
 			console.log(chalk.red("Invalid arguments for remind command. Available arguments: picks, maps, bans, score"));
 	}
@@ -465,13 +470,13 @@ function processBan(msg) {
 			console.log("Proceeding with picks. Will ban again after " + match.ban.spanishPicksBeforeBan + " picks.");
 			channel.sendMessage("1st part of the ban phase is over.");
 			autoToggle("", true);
-			remindOptions([,"bans"]);
+			remindOptions("bans");
 		}
 	} else{
 		console.log("Proceeding with picks.");
 		channel.sendMessage("Ban phase is over.")
 		autoToggle("", true);
-		remindOptions([,"bans"]);
+		remindOptions("bans");
 	}
 }
 
