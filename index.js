@@ -329,7 +329,7 @@ function createListeners() {
 					await close();
 					break;
 				case 'invite':
-					const players = match.teams[0].members.concat(match.teams[1].members);
+					const players = match.teams[RED].members.concat(match.teams[RED].members);
 					for (const p of players) {
 						// intentionally fire these synchronously
 						await lobby.invitePlayer(p);
@@ -344,15 +344,15 @@ function createListeners() {
 					if (map) console.log(chalk.cyan(`Changing map to ${map}`));
 					break;
 				case 'score':
-					matchScore[0] = parseInt(m[1]);
-					matchScore[1] = parseInt(m[2]);
+					matchScore[RED] = parseInt(m[1]);
+					matchScore[BLUE] = parseInt(m[2]);
 					printScore();
 					break;
 				case 'auto':
 					autoToggle(msg);
 					break;
 				case 'picking':
-					pickingTeam = (m[1].toLowerCase() === "red" ? 0 : 1);
+					pickingTeam = (m[1].toLowerCase() === "red" ? RED : BLUE);
 					if (auto) promptPick();
 					break;
 				case 'ping':
@@ -368,8 +368,8 @@ function createListeners() {
 					channel.sendMessage("Match aborted manually.")
 					break;
 				case 'banning'://ban phase start
+				if (m[1] === 'red') banningTeam = RED; else banningTeam = BLUE;
 					if (auto) {
-						if (m[1] === 'red') banningTeam = RED; else banningTeam = BLUE;
 						console.log(chalk.yellow("Ban phase started"));
 						channel.sendMessage("Ban phase started.");
 						promptBan();
@@ -404,8 +404,8 @@ function createListeners() {
 		}
 		// people on the banning team can ban just by saying the map name/code
 		if (matchStatus & WAITING_FOR_BAN != 0 && replaceSpacesWithUnderscoresInArray(match.teams[banningTeam].members).includes(msg.user.ircUsername)) {
-			if (isCode(msg.message))
-				if (isMap) processBan(msg);
+			const map = findMap(msg.message)
+			if (map) processBan(map.code);
 		}
 	});
 }
@@ -476,7 +476,7 @@ function processBan(msg) {
 }
 
 function banCycle() {
-	if (banOrder[bansLeft - 1] === 'B') banningTeam = firstBan ^ 1;
+	if (banOrder[bansLeft - 1] === 'B') banningTeam = ~firstBan;
 	else banningTeam = firstBan;
 }
 
