@@ -326,67 +326,7 @@ function createListeners() {
 		if (msg.message.startsWith(">") && msg.user.ircUsername === config.username) {
 			const m = msg.message.substring(1).split(' ');
 			console.log(chalk.yellow(`Received command "${m[0]}"`));
-
-			switch (m[0]) {
-				case 'close':
-					await close();
-					break;
-				case 'invite': {
-					const players = match.teams[RED].members.concat(match.teams[RED].members);
-					for (const p of players) {
-						// intentionally fire these synchronously
-						await lobby.invitePlayer(p);
-					}
-					break;
-				}
-				case 'forcepick': {
-					const forced = setBeatmap(m.slice(1).join(' '));
-					if (forced) pick(forced);
-					break;
-				}
-				case 'map': {
-					const map = setBeatmap(m.slice(1).join(' '), true);
-					if (map) console.log(chalk.cyan(`Changing map to ${map}`));
-					break;
-				}
-				case 'score':
-					matchScore[RED] = parseInt(m[1]);
-					matchScore[BLUE] = parseInt(m[2]);
-					printScore();
-					break;
-				case 'auto':
-					autoToggle(msg);
-					break;
-				case 'picking':
-					pickingTeam = (m[1].toLowerCase() === "red" ? RED : BLUE);
-					if (auto) promptPick();
-					break;
-				case 'ping':
-					channel.sendMessage("pong");
-					break;
-				case 'timeout':
-					await channel.sendMessage(`An additional ${match.timers.timeout}s of timeout have been given.`)
-					channel.sendMessage("It will be added after the current timer ends.");
-					matchStatus |= TIMEOUT;
-					break;
-				case 'abort':
-					await lobby.abortMatch();
-					channel.sendMessage("Match aborted manually.")
-					break;
-				case 'banning'://ban phase start
-				if (m[1] === 'red') banningTeam = RED; else banningTeam = BLUE;
-					if (auto) {
-						console.log(chalk.yellow("Ban phase started"));
-						channel.sendMessage("Ban phase started.");
-						promptBan();
-					}
-					break;
-				case 'remind':
-					remindOptions(m[1]);
-					break;
-				default:
-					console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
-			}
+			await CommandSelector(m);
 		}
 
 		if (auto && msg.message === "!panic") {
@@ -426,6 +366,69 @@ function createListeners() {
 rl.on('line', (input) => {
 	channel.sendMessage(input);
 });
+
+async function CommandSelector(m) {
+	switch (m[0]) {
+		case 'close':
+			await close();
+			break;
+		case 'invite': {
+			const players = match.teams[RED].members.concat(match.teams[RED].members);
+			for (const p of players) {
+				// intentionally fire these synchronously
+				await lobby.invitePlayer(p);
+			}
+			break;
+		}
+		case 'forcepick': {
+			const forced = setBeatmap(m.slice(1).join(' '));
+			if (forced) pick(forced);
+			break;
+		}
+		case 'map': {
+			const map = setBeatmap(m.slice(1).join(' '), true);
+			if (map) console.log(chalk.cyan(`Changing map to ${map}`));
+			break;
+		}
+		case 'score':
+			matchScore[RED] = parseInt(m[1]);
+			matchScore[BLUE] = parseInt(m[2]);
+			printScore();
+			break;
+		case 'auto':
+			autoToggle(m[1]);
+			break;
+		case 'picking':
+			pickingTeam = (m[1].toLowerCase() === "red" ? RED : BLUE);
+			if (auto) promptPick();
+			break;
+		case 'ping':
+			channel.sendMessage("pong");
+			break;
+		case 'timeout':
+			await channel.sendMessage(`An additional ${match.timers.timeout}s of timeout have been given.`);
+			channel.sendMessage("It will be added after the current timer ends.");
+			matchStatus |= TIMEOUT;
+			break;
+		case 'abort':
+			await lobby.abortMatch();
+			channel.sendMessage("Match aborted manually.");
+			break;
+		case 'banning': //ban phase start
+			banningTeam = (m[1].toLowerCase === "red" ? RED : BLUE);
+			if (auto) {
+				console.log(chalk.yellow("Ban phase started"));
+				channel.sendMessage("Ban phase started.");
+				promptBan();
+			}
+			break;
+		case 'remind':
+			remindOptions(m[1]);
+			break;
+		default:
+			console.log(chalk.bold.red(`Unrecognized command "${m[0]}"`));
+	}
+}
 
 function remindOptions(m) {
 	switch (m) {
