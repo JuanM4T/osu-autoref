@@ -1,7 +1,6 @@
 const bancho = require('bancho.js');
 const chalk = require('chalk');
 const nodesu = require('nodesu');
-const fs = require('fs');
 const { WebhookClient } = require('discord.js');
 
 const readline = require('readline');
@@ -294,7 +293,7 @@ function createListeners() {
 	});
 	lobby.on("matchFinished", (scores) => {
 		if (auto) {
-			if(!match.bans.spanishBans || (picks[0].length + picks[1].length) != match.ban.spanishPicksBeforeBan) 
+			if(!match.bans.spanishBans || (picks[0].length + picks[1].length) !== match.ban.spanishPicksBeforeBan)
 			pickCycle(scores); 
 			else promptBan();
 		}
@@ -335,7 +334,7 @@ function createListeners() {
 			console.log(chalk.red.bold("Something has gone really wrong!\n") + "Someone has executed the !panic command and " + chalk.yellow("auto mode has been disabled"));
 			await webhook.send(`<@${config.discord.refereeRole}>, someone has executed the !panic command on match https://osu.ppy.sh/mp/${lobby.id}.\n` +
 				"join using ` /join #mp_" + lobby.id + "` The host is " + config.username + ` and added refs are ${match.trustedPeople.toString()}.`)
-			if (matchStatus & PLAYING_MATCH == 0) {
+			if (matchStatus & PLAYING_MATCH === 0) {
 				lobby.abortTimer();
 			}
 		}
@@ -466,20 +465,20 @@ function autoToggle(m, force=false) {
 	channel.sendMessage("Auto referee is " + (auto ? "ON" : "OFF"));
 	channel.sendMessage("Remember to use '!panic' if there's any problem throughout (lobby breaking ones). Don't abuse it.");
 	if (auto) 
-		if (bansLeft > 1 && (!match.ban.spanishBans || picks[0].length + picks[1].length != match.ban.spanishPicksBeforeBan)) 
+		if (bansLeft > 1 && (!match.ban.spanishBans || picks[0].length + picks[1].length !== match.ban.spanishPicksBeforeBan))
 		promptBan();
 		else promptPick();
 }
 
 function processBan(msg) {
 	lobby.abortTimer();
-	if(bansLeft == match.ban.perTeam * 2) firstBan = banningTeam;
+	if(bansLeft === match.ban.perTeam * 2) firstBan = banningTeam;
 	bansLeft--;
 	bans[pickingTeam].push(msg.message);
-	channel.sendMessage(`Map ${msg.message} has been banned by ${match.teams[pickingTeam].name}. ${bansLeft} ban` + (bansLeft == 1 ? "" : `s`) + ` left.`);
+	channel.sendMessage(`Map ${msg.message} has been banned by ${match.teams[pickingTeam].name}. ${bansLeft} ban` + (bansLeft === 1 ? "" : `s`) + ` left.`);
 	if (bansLeft > 0) {
 		banCycle();
-		if((!match.ban.spanishBans || bansLeft % 2 != 0)){
+		if((!match.ban.spanishBans || bansLeft % 2 !== 0)){
 			channel.sendMessage(`Next ban will be from ${match.teams[pickingTeam].name}`); // switch banning team
 			promptBan();
 		} else{
