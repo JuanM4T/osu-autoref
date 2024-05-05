@@ -102,18 +102,19 @@ function setBeatmap(input, force = false) {
 
         let map = findMap(input);
 
-        // Find correct mods based on map code
-        let mod = findMods(map);
+        if(map){
+            // Find correct mods based on map code
+            let mod = findMods(map);
 
-        if (!bans[0].concat(bans[1]).includes(map.code) || force) {
-            channel.sendMessage("Selecting " + map.name);
-            lobby.setMap(map.id);
-            lobby.setMods(mod, false);
-            return map.code;
-        } else {
-            channel.sendMessage(map.name + " is banned.");
-        }
-
+            if (!bans[0].concat(bans[1]).includes(map.code) || force) {
+                channel.sendMessage("Selecting " + map.name);
+                lobby.setMap(map.id);
+                lobby.setMods(mod, false);
+                return map.code;
+            } else {
+                channel.sendMessage(map.name + " is banned.");
+            }
+        } else{channel.sendMessage(input + " is not in the pool.");}
     }
 }
 
@@ -291,7 +292,7 @@ async function CommandSelector(m) {
             await close();
             break;
         case 'invite': {
-            const players = match.teams[RED].members.concat(match.teams[RED].members);
+            const players = match.teams[RED].members.concat(match.teams[BLUE].members);
             for (const p of players) {
                 // intentionally fire these synchronously
                 await lobby.invitePlayer(p);
@@ -339,7 +340,9 @@ async function CommandSelector(m) {
             channel.sendMessage("Match aborted manually.");
             break;
         case 'banning': //ban phase start
-            banningTeam = (m[1].toLowerCase.toString() === "red" ? RED : BLUE);
+            console.log(m[1]);
+            banningTeam = (m[1].toLowerCase() === "red" ? RED : BLUE);
+            console.log(banningTeam);
             if (auto) promptBan();
             break;
         case 'remind':
@@ -412,18 +415,21 @@ function autoToggle(m, force = false) {
 /**
  * Processes a ban.
  * @param {Object} msg - The message object.
- * @param {string} msg.message - The content of the message.
  */
 function processBan(msg) {
+    console.log(msg);
+    console.log(match.teams);
     lobby.abortTimer();
     if (bansLeft === match.ban.perTeam * 2) firstBan = banningTeam;
     bansLeft--;
-    bans[pickingTeam].push(msg.message);
-    channel.sendMessage(`Map ${msg.message} has been banned by ${match.teams[pickingTeam].name}. ${bansLeft} ban` + (bansLeft === 1 ? "" : `s`) + ` left.`);
+    bans[banningTeam].push(msg);
+    channel.sendMessage(`Map ${msg} has been banned by ${match.teams[banningTeam].name}. ${bansLeft} ban` + (bansLeft === 1 ? "" : `s`) + ` left.`);
+    console.log(banningTeam);
     if (bansLeft > 0) {
         banCycle();
         if ((!match.ban.spanishBans || bansLeft % 2 !== 0)) {
-            channel.sendMessage(`Next ban will be from ${match.teams[pickingTeam].name}`); // switch banning team
+            console.log(banningTeam)
+            channel.sendMessage(`Next ban will be from ${match.teams[banningTeam].name}`); // switch banning team
             promptBan();
         } else {
             console.log("Proceeding with picks. Will ban again after " + match.ban.spanishPicksBeforeBan + " picks.");
@@ -459,7 +465,7 @@ function promptBan() {
  * Otherwise, it sets the banning team to the first ban.
  */
 function banCycle() {
-    if (banOrder[bansLeft - 1] === 'B') banningTeam = ~firstBan; else banningTeam = firstBan;
+    if (banOrder[bansLeft - 1] === 'B') banningTeam = firstBan ^ 1; else banningTeam = firstBan;
 }
 
 /**
