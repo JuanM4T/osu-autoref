@@ -9,7 +9,7 @@ const rl = readline.createInterface({
 });
 
 // Remember to fill config.json with your credentials
-const config = require('./config.json');
+const config = require('./config.example.json');
 const pool = require('./pool.json');
 const match = require('./match.json');
 
@@ -24,6 +24,7 @@ const WAITING_FOR_PICK = 1, WAITING_FOR_START = 2, PLAYING_MATCH = 4, TIMEOUT = 
 const WAITING_FOR_BAN = 16, TIMER_RAN_OUT_WHILE_PICKING = 32, TIMER_RAN_OUT_WHILE_BANNING = 64;
 const matchWinningScore = Math.ceil(match.BO / 2);
 let matchScore = [0, 0];
+let maps = [];
 let bans = [[], []];
 let picks = [[], []];
 let bansLeft = match.ban.perTeam * 2;
@@ -59,6 +60,7 @@ async function init() {
     console.log(chalk.bold.cyan('Starting osu!autoref'));
     await initPool();
     console.log(chalk.bold.green('Loaded map pool!'));
+    maps = pool.map((map) => map.code);
     console.log(chalk.cyan('Attempting to connect...'));
 
     try {
@@ -91,6 +93,19 @@ async function init() {
     createListeners();
 }
 
+function isMapBanned(mapCode) {
+    return bans[0].concat(bans[1]).includes(mapCode);
+}
+
+function isMapPicked(mapCode) {
+    return picks[0].concat(picks[1]).includes(mapCode);
+}
+
+function isMapAvailable(mapCode) {
+    // = return !isMapPicked(mapCode) && !isMapBanned(mapCode);
+    return maps.contains(mapCode);
+}
+
 /**
  * Set the current beatmap based on user input.
  * @param {string} input - The user's input, which can be a map code or part of a map name.
@@ -100,21 +115,15 @@ async function init() {
 function setBeatmap(input, force = false) {
     if (force || input.length > 4 || (input.length > 2 && isCode(input))) {
 
-        let map = findMap(input);
+        let map = findMap(input, force);
+        if (!map) return;
 
-        if(map){
-            // Find correct mods based on map code
-            let mod = findMods(map);
+        let mod = findMods(map);
 
-            if (!bans[0].concat(bans[1]).includes(map.code) || force) {
-                channel.sendMessage("Selecting " + map.name);
-                lobby.setMap(map.id);
-                lobby.setMods(mod, false);
-                return map.code;
-            } else {
-                channel.sendMessage(map.name + " is banned.");
-            }
-        }
+        channel.sendMessage("Selecting " + map.name);
+        lobby.setMap(map.id);
+        lobby.setMods(mod, false);
+        return map.code;
     }
 }
 
@@ -148,9 +157,10 @@ function isCode(input) {
 /**
  * Finds a map based on the input.
  * @param {string} input - The input to find the map by.
+ * @param {boolean} force - Whether to bypass checks.
  * @returns {Object} The found map, or undefined if no map was found.
  */
-function findMap(input) {
+function findMap(input, force = false) {
     const codeResult = pool.filter((map) => {
         return map.code.toLowerCase() === input.toLowerCase();
     });
@@ -166,6 +176,18 @@ function findMap(input) {
     } else if (result.length === 1) {
         map = result[0];
     } else {
+        return;
+    }
+
+    if(force) return map;
+
+    if(isMapBanned(map.code)){
+        channel.sendMessage(map.name + " is banned.");
+        return;
+    }
+
+    if (isMapPicked(map.code)) {
+        channel.sendMessage(map.name + " has already been picked.");
         return;
     }
 
@@ -251,7 +273,7 @@ function createListeners() {
             channel.sendMessage("Panic command received. A ref will be checking in shortly.")
             console.log(chalk.red.bold("Something has gone really wrong!\n") + "Someone has executed the !panic command and " + chalk.yellow("auto mode has been disabled"));
             await webhook.send(`<@${config.discord.refereeRole}>, someone has executed the !panic command on match https://osu.ppy.sh/mp/${lobby.id}.\n` + "join using ` /join #mp_" + lobby.id + "` The host is " + config.username + ` and added refs are ${match.trustedPeople.toString()}.`)
-            if (matchStatus & PLAYING_MATCH === 0) {
+            if ((matchStatus & PLAYING_MATCH) === 0) {
                 lobby.abortTimer();
             } else handlePlayerLeave(false);
         }
@@ -383,11 +405,7 @@ function remindOptions(m) {
             printScore();
             break;
         case 'maps': { //maps left
-            let maps = pool.map((map) => map.code);
-            let pickedMaps = picks[0].concat(picks[1]);
-            let bannedMaps = bans[0].concat(bans[1])
-            let remainingMaps = maps.filter((map) => !pickedMaps.includes(map) && !bannedMaps.includes(map));
-            channel.sendMessage("Maps left: " + remainingMaps.join(", "));
+            channel.sendMessage("Maps left: " + maps.join(", "));
             break;
         }
         case 'all':
@@ -424,6 +442,7 @@ function processBan(msg) {
     if (bansLeft === match.ban.perTeam * 2) firstBan = banningTeam;
     bansLeft--;
     bans[banningTeam].push(msg);
+    maps.splice(maps.indexOf(msg), 1);
     channel.sendMessage(`Map ${msg} has been banned by ${match.teams[banningTeam].name}. ${bansLeft} ban` + (bansLeft === 1 ? "" : `s`) + ` left.`);
     console.log(banningTeam);
     if (bansLeft > 0) {
@@ -476,6 +495,7 @@ function banCycle() {
 async function pick(map) {
     console.log(chalk.cyan(`Changing map to ${map}`));
     picks[pickingTeam].push(map);
+    maps.splice(maps.indexOf(map), 1);
     lobby.abortTimer();
     matchStatus &= ~WAITING_FOR_PICK;
     matchStatus |= WAITING_FOR_START;
