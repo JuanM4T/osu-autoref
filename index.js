@@ -33,6 +33,7 @@ let banningTeam = 0;
 let pickingTeam = 0;
 let banOrder = match.ban.format.split("").reverse().join(""); //hack
 let matchStartedAt;
+let players = 0;
 
 // turn on to keep track of scores
 // and ask players to pick maps
@@ -82,7 +83,7 @@ async function init() {
     console.log(chalk.bold.green("Lobby created!"));
     console.log(chalk.bold.cyan(`Name: ${lobby.name}, password: ${password}`));
     console.log(chalk.bold.cyan(`Multiplayer link: https://osu.ppy.sh/mp/${lobby.id}`));
-    console.log(chalk.cyan(`Open in your irc client with "/join #mp_${lobby.id}"`));
+    console.log(chalk.cyan(`Open in your irc client with /join #mp_${lobby.id}`));
     console.log(chalk.yellow(`Match refs added: ${match.trustedPeople.join(', ')}`))
 
 
@@ -152,117 +153,13 @@ function findMap(input) {
 }
 
 /**
- * Print the current score to the chat.
- */
-function printScore() {
-    channel.sendMessage(`${match.teams[0].name} ${matchScore[0]} -- ${matchScore[1]} ${match.teams[1].name}`);
-}
-
-/**
- * Prompt the team currently picking to pick a map.
- */
-function promptPick() {
-    channel.sendMessage(`${match.teams[pickingTeam].name}, you have ${match.timers.pickWait} to pick the next map`);
-    lobby.startTimer(match.timers.pickWait);
-    matchStatus = WAITING_FOR_PICK;
-}
-
-/**
- * Calculate and announce the (current) match result based on the scores.
- * @param {Array} scores - An array of scores, where each score is an object with properties 'player' and 'score'.
- */
-function lastPickResult(scores) {
-    let scoreline = {"Blue": 0, "Red": 0};
-    scores.forEach((score) => {
-        scoreline[score.player.team] += score.score; //* score.pass not to count fails
-    });
-
-    let diff = scoreline["Blue"] - scoreline["Red"];
-    if (diff > 0) {
-        channel.sendMessage(`${match.teams[BLUE].name} wins by ${diff}`);
-        matchScore[BLUE]++;
-    } else if (diff < 0) {
-        channel.sendMessage(`${match.teams[RED].name} wins by ${-diff}`);
-        matchScore[RED]++;
-    } else {
-        channel.sendMessage("It was a tie!");
-    }
-}
-
-/**
- * Check if a specific bit is set in the match status.
- * @param {number} value - The value to be tested for the bit.
- * @param {number} bit - The bit to check. (2 to the power of n, where n is the bit position starting from 0)
- * @returns {boolean} True if the bit is set, false otherwise.
- */
-function isBitSet(value, bit) {
-    return (value & bit) === bit;
-}
-
-/**
- * Check the match score and announce the final result or prompt for the next pick.
- */
-function checkScoreAndProceed() {
-    if (matchScore[BLUE] >= matchWinningScore) {
-        channel.sendMessage(`${match.teams[BLUE].name} has won the match!`);
-    } else if (matchScore[RED] >= matchWinningScore) {
-        channel.sendMessage(`${match.teams[RED].name} has won the match!`);
-    } else if (matchScore[BLUE] === matchWinningScore - 1 && matchScore[RED] === matchWinningScore - 1) {
-        channel.sendMessage("It's time for the tiebreaker!");
-        setTimeout(() => setBeatmap('TB', true), 2000); // bug: after match ends, need to wait a bit before changing map
-    } else {
-        promptPick();
-    }
-}
-
-/**
- * Handle a player leaving during a match.
- */
-function handlePlayerLeave() {
-    if (isBitSet(matchStatus, PLAYING_MATCH)) {
-        console.log(chalk.red.bold("Player left during match!"));
-        if (auto) {
-            const abortLeniency = match.timers.abortLeniency * 1000; // convert to milliseconds
-            const currentTime = Date.now();
-            if (currentTime - matchStartedAt < abortLeniency) {
-                lobby.abortMatch();
-                channel.sendMessage("Match aborted due to player leaving.");
-                matchStatus = WAITING_FOR_START;
-            }
-        }
-    }
-}
-
-/**
- * Replaces all spaces in each string of an array with underscores.
- * If a string doesn't contain any spaces, the original string is returned.
- * The function uses the `replaceSpacesWithUnderscores` function to process each string.
- *
- * @param {Array<string>} arr - The array of strings to process.
- * @returns {Array<string>} The processed array with spaces in strings replaced by underscores.
- */
-function replaceSpacesWithUnderscoresInArray(arr) {
-    return arr.map(function (str) {
-        return replaceSpacesWithUnderscores(str);
-    });
-}
-
-/**
- * Replaces all spaces in a string with underscores.
- * @param {string} str - The string to process.
- * @returns {string} The processed string with spaces replaced by underscores.
- */
-function replaceSpacesWithUnderscores(str) {
-    return str.replace(/ /g, '_');
-}
-
-/**
  * Create event listeners for various lobby and chat events.
  */
 function createListeners() {
     lobby.on("playerJoined", (obj) => {
         const name = obj.player.user.username;
         console.log(chalk.yellow(`Player ${name} has joined!`));
+        players++;
 
         // Attempt to auto-assign team
         if (match.teams[BLUE].members.includes(name)) {
@@ -276,23 +173,20 @@ function createListeners() {
         if (obj.player.user.isClient()) {
             lobby.setHost("#" + obj.player.user.id);
         }
-
-        if (auto && isBitSet(matchStatus, WAITING_FOR_START)) {
-            console.log(chalk.yellow("Player joined and auto is enabled. Starting timer."));
-            printScore();
-            channel.sendMessage("You have " + match.timers.readyUp + " to ready up.");
-            lobby.startTimer(match.timers.readyUp);
-        }
     });
 
     lobby.on("playerLeft", handlePlayerLeave);
     lobby.on("allPlayersReady", () => {
-        lobby.abortTimer();
-        lobby.startMatch(match.timers.readyStart);
+        if(players >= match.teams[RED].members.length + match.teams[BLUE].members.length) {
+            lobby.abortTimer();
+            console.log(chalk.green("Everyone is ready, starting match"));
+            lobby.updateSettings();
+            lobby.startMatch(match.timers.readyStart);
+        } else console.log(chalk.red("Everyone is ready, but not everyone is in!"));
     });
     lobby.on("matchStarted", () => {
         console.log(chalk.green("Match started!"));
-        matchStatus &= PLAYING_MATCH;
+        matchStatus = PLAYING_MATCH;
         matchStartedAt = Date.now();
     });
     lobby.on("matchFinished", (scores) => {
@@ -314,9 +208,8 @@ function createListeners() {
                 matchStatus |= TIMER_RAN_OUT_WHILE_PICKING;
                 promptPick();
             } else if (isBitSet(matchStatus, WAITING_FOR_START)) {
-                Console.log(chalk.magenta("Players weren't ready after the timer ran out. ") + chalk.yellow("Forcing start."));
+                console.log(chalk.magenta("Players weren't ready after the timer ran out. ") + chalk.yellow("Forcing start."));
                 lobby.startMatch(match.timers.forceStart);
-                matchStatus &= PLAYING_MATCH;
             }
         }
     })
@@ -345,9 +238,8 @@ function createListeners() {
         if (isBitSet(matchStatus, WAITING_FOR_PICK) && auto && replaceSpacesWithUnderscoresInArray(match.teams[pickingTeam].members).includes(msg.user.ircUsername)) {
             const map = setBeatmap(msg.message);
             if (map) {
-                matchStatus &= ~TIMEOUT; // remove timeout flag
                 await pick(map);
-                matchStatus &= ~WAITING_FOR_PICK; // remove timeout flag
+                matchStatus = WAITING_FOR_START;
             }
         }
         // people on the banning team can ban just by saying the map name/code
@@ -497,11 +389,6 @@ function processBan(msg) {
     }
 }
 
-function banCycle() {
-    if (banOrder[bansLeft - 1] === 'B') banningTeam = ~firstBan;
-    else banningTeam = firstBan;
-}
-
 async function pick(map) {
     console.log(chalk.cyan(`Changing map to ${map}`));
     lobby.abortTimer();
@@ -510,10 +397,116 @@ async function pick(map) {
     lobby.startTimer(match.timers.readyUp);
 }
 
+/**
+ * Print the current score to the chat.
+ */
+function printScore() {
+    channel.sendMessage(`${match.teams[0].name} ${matchScore[0]} -- ${matchScore[1]} ${match.teams[1].name}`);
+}
+
+/**
+ * Prompt the team currently picking to pick a map.
+ */
+function promptPick() {
+    channel.sendMessage(`${match.teams[pickingTeam].name}, you have ${match.timers.pickWait} to pick the next map`);
+    lobby.startTimer(match.timers.pickWait);
+    matchStatus = WAITING_FOR_PICK;
+}
+
+/**
+ * Calculate and announce the (current) match result based on the scores.
+ * @param {Array} scores - An array of scores, where each score is an object with properties 'player' and 'score'.
+ */
+function lastPickResult(scores) {
+    let scoreline = {"Blue": 0, "Red": 0};
+    scores.forEach((score) => {
+        scoreline[score.player.team] += score.score; //* score.pass not to count fails
+    });
+
+    let diff = scoreline["Blue"] - scoreline["Red"];
+    if (diff > 0) {
+        channel.sendMessage(`${match.teams[BLUE].name} wins by ${diff}`);
+        matchScore[BLUE]++;
+    } else if (diff < 0) {
+        channel.sendMessage(`${match.teams[RED].name} wins by ${-diff}`);
+        matchScore[RED]++;
+    } else {
+        channel.sendMessage("It was a tie!");
+    }
+}
+
+/**
+ * Check if a specific bit is set in the match status.
+ * @param {number} value - The value to be tested for the bit.
+ * @param {number} bit - The bit to check. (2 to the power of n, where n is the bit position starting from 0)
+ * @returns {boolean} True if the bit is set, false otherwise.
+ */
+function isBitSet(value, bit) {
+    return (value & bit) === bit;
+}
+
+/**
+ * Check the match score and announce the final result or prompt for the next pick.
+ */
+function checkScoreAndProceed() {
+    if (matchScore[BLUE] >= matchWinningScore) {
+        channel.sendMessage(`${match.teams[BLUE].name} has won the match!`);
+    } else if (matchScore[RED] >= matchWinningScore) {
+        channel.sendMessage(`${match.teams[RED].name} has won the match!`);
+    } else if (matchScore[BLUE] === matchWinningScore - 1 && matchScore[RED] === matchWinningScore - 1) {
+        channel.sendMessage("It's time for the tiebreaker!");
+        setTimeout(() => setBeatmap('TB', true), 2000); // bug: after match ends, need to wait a bit before changing map
+    } else {
+        promptPick();
+    }
+}
+
+/**
+ * Handle a player leaving during a match.
+ */
+function handlePlayerLeave() {
+    players--;
+    if (isBitSet(matchStatus, PLAYING_MATCH)) {
+        console.log(chalk.red.bold("Player left during match!"));
+        if (auto) {
+            const abortLeniency = match.timers.abortLeniency * 1000; // convert to milliseconds
+            const currentTime = Date.now();
+            if (currentTime - matchStartedAt < abortLeniency) {
+                lobby.abortMatch();
+                channel.sendMessage("Match aborted due to player leaving within " + match.timers.abortLeniency + "s.");
+                matchStatus = WAITING_FOR_START;
+            }
+        }
+    }
+}
+
+/**
+ * Replaces all spaces in each string of an array with underscores.
+ * If a string doesn't contain any spaces, the original string is returned.
+ * The function uses the `replaceSpacesWithUnderscores` function to process each string.
+ *
+ * @param {Array<string>} arr - The array of strings to process.
+ * @returns {Array<string>} The processed array with spaces in strings replaced by underscores.
+ */
+function replaceSpacesWithUnderscoresInArray(arr) {
+    return arr.map(function (str) {
+        return replaceSpacesWithUnderscores(str);
+    });
+}
+
+/**
+ * Replaces all spaces in a string with underscores.
+ * @param {string} str - The string to process.
+ * @returns {string} The processed string with spaces replaced by underscores.
+ */
+function replaceSpacesWithUnderscores(str) {
+    return str.replace(/ /g, '_');
+}
+
 function pickCycle(scores) {
     lastPickResult(scores);
     printScore();
-    if (isBitSet(matchStatus, TIMER_RAN_OUT_WHILE_PICKING)) pickingTeam ^= 1; // switch picking team
+    if (!isBitSet(matchStatus, TIMER_RAN_OUT_WHILE_PICKING)) pickingTeam ^= 1; // switch picking team
     matchStatus &= ~TIMER_RAN_OUT_WHILE_PICKING;
     checkScoreAndProceed();
 }
@@ -522,6 +515,11 @@ function promptBan() {
     channel.sendMessage(`${match.teams[banningTeam].name}, you have ${match.timers.banTime} to ban a map.`);
     lobby.startTimer(match.timers.banTime);
     matchStatus = WAITING_FOR_BAN;
+}
+
+function banCycle() {
+    if (banOrder[bansLeft - 1] === 'B') banningTeam = ~firstBan;
+    else banningTeam = firstBan;
 }
 
 /**
