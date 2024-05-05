@@ -5,8 +5,7 @@ const {WebhookClient} = require('discord.js');
 
 const readline = require('readline');
 const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
+    input: process.stdin, output: process.stdout
 });
 
 // Remember to fill config.json with your credentials
@@ -106,13 +105,23 @@ function setBeatmap(input, force = false) {
         // Find correct mods based on map code
         let mod = findMods(map);
 
-        channel.sendMessage("Selecting " + map.name);
-        lobby.setMap(map.id);
-        lobby.setMods(mod, false);
-        return map.code;
+        if (!bans[0].concat(bans[1]).includes(map.code) || force) {
+            channel.sendMessage("Selecting " + map.name);
+            lobby.setMap(map.id);
+            lobby.setMods(mod, false);
+            return map.code;
+        } else {
+            channel.sendMessage(map.name + " is banned.");
+        }
+
     }
 }
 
+/**
+ * Determines the mod combo for a given map.
+ * @param {Object} map - The map object.
+ * @returns {string} The mod combo for the map.
+ */
 function findMods(map) {
     let mapType = map.code.slice(0, 2);
     let mod = 'Freemod';
@@ -126,10 +135,20 @@ function findMods(map) {
     return mod;
 }
 
+/**
+ * Checks if the input is a map code, such as NM1.
+ * @param {string} input - The input to check.
+ * @returns {boolean} True if the input is a code, false otherwise.
+ */
 function isCode(input) {
     return !isNaN(input.slice(-1)); //is a numbered map code like NM2, DT1, etc.
 }
 
+/**
+ * Finds a map based on the input.
+ * @param {string} input - The input to find the map by.
+ * @returns {Object} The found map, or undefined if no map was found.
+ */
 function findMap(input) {
     const codeResult = pool.filter((map) => {
         return map.code.toLowerCase() === input.toLowerCase();
@@ -177,7 +196,7 @@ function createListeners() {
 
     lobby.on("playerLeft", handlePlayerLeave);
     lobby.on("allPlayersReady", () => {
-        if(players >= match.teams[RED].members.length + match.teams[BLUE].members.length) {
+        if (players >= match.teams[RED].members.length + match.teams[BLUE].members.length) {
             lobby.abortTimer();
             console.log(chalk.green("Everyone is ready, starting match"));
             lobby.updateSettings();
@@ -191,9 +210,7 @@ function createListeners() {
     });
     lobby.on("matchFinished", (scores) => {
         if (auto) {
-            if (!match.bans.spanishBans || (picks[0].length + picks[1].length) !== match.ban.spanishPicksBeforeBan)
-                pickCycle(scores);
-            else promptBan();
+            if (!match.ban.spanishBans || (picks[0].length + picks[1].length) !== match.ban.spanishPicksBeforeBan) pickCycle(scores); else promptBan();
         }
     });
     lobby.on("timerEnded", () => {
@@ -204,12 +221,17 @@ function createListeners() {
                 matchStatus ^= TIMEOUT; // remove timeout flag
             } else if (isBitSet(matchStatus, WAITING_FOR_PICK)) {
                 pickingTeam ^= 1; // switch picking team
-                channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam].name} to pick a map. ` + `The other team will pick now.`)
+                channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam].name} to pick a map. ` + `The other team will pick twice now.`)
                 matchStatus |= TIMER_RAN_OUT_WHILE_PICKING;
                 promptPick();
             } else if (isBitSet(matchStatus, WAITING_FOR_START)) {
                 console.log(chalk.magenta("Players weren't ready after the timer ran out. ") + chalk.yellow("Forcing start."));
                 lobby.startMatch(match.timers.forceStart);
+            } else if (isBitSet(matchStatus, WAITING_FOR_BAN)) {
+                banningTeam ^= 1; // switch picking team
+                channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam].name} to ban a map. ` + `The other team will ban now.`)
+                matchStatus |= TIMER_RAN_OUT_WHILE_BANNING;
+                promptBan();
             }
         }
     })
@@ -227,11 +249,10 @@ function createListeners() {
             auto = false;
             channel.sendMessage("Panic command received. A ref will be checking in shortly.")
             console.log(chalk.red.bold("Something has gone really wrong!\n") + "Someone has executed the !panic command and " + chalk.yellow("auto mode has been disabled"));
-            await webhook.send(`<@${config.discord.refereeRole}>, someone has executed the !panic command on match https://osu.ppy.sh/mp/${lobby.id}.\n` +
-                "join using ` /join #mp_" + lobby.id + "` The host is " + config.username + ` and added refs are ${match.trustedPeople.toString()}.`)
+            await webhook.send(`<@${config.discord.refereeRole}>, someone has executed the !panic command on match https://osu.ppy.sh/mp/${lobby.id}.\n` + "join using ` /join #mp_" + lobby.id + "` The host is " + config.username + ` and added refs are ${match.trustedPeople.toString()}.`)
             if (matchStatus & PLAYING_MATCH === 0) {
                 lobby.abortTimer();
-            }
+            } else handlePlayerLeave(false);
         }
 
         // people on the picking team can choose just by saying the map name/code
@@ -260,6 +281,10 @@ rl.on('line', (input) => {
     channel.sendMessage(input);
 });
 
+/**
+ * Handles various commands.
+ * @param {string[]} m - The command and its arguments (if any).
+ */
 async function CommandSelector(m) {
     switch (m[0]) {
         case 'close':
@@ -271,6 +296,12 @@ async function CommandSelector(m) {
                 // intentionally fire these synchronously
                 await lobby.invitePlayer(p);
             }
+            break;
+        }
+        case 'addref': {
+            const ref = m[1];
+            await lobby.addRef(ref);
+            match.trustedPeople.push(ref);
             break;
         }
         case 'forcepick': {
@@ -308,12 +339,8 @@ async function CommandSelector(m) {
             channel.sendMessage("Match aborted manually.");
             break;
         case 'banning': //ban phase start
-            banningTeam = (m[1].toLowerCase === "red" ? RED : BLUE);
-            if (auto) {
-                console.log(chalk.yellow("Ban phase started"));
-                channel.sendMessage("Ban phase started.");
-                promptBan();
-            }
+            banningTeam = (m[1].toLowerCase.toString() === "red" ? RED : BLUE);
+            if (auto) promptBan();
             break;
         case 'remind':
             remindOptions(m[1]);
@@ -323,6 +350,22 @@ async function CommandSelector(m) {
     }
 }
 
+/**
+ * Reminds the options based on the input.
+ * @param {string} m - The option to remind. Can be 'picks', 'bans', 'score', 'maps', or 'all'.
+ *
+ * If the input is 'picks', it will send messages with the picked maps.
+ *
+ * If the input is 'bans', it will send messages with the banned maps.
+ *
+ * If the input is 'score', it will print the score.
+ *
+ * If the input is 'maps', it will send a message with the remaining maps.
+ *
+ * If the input is 'all', it will remind all of the above.
+ *
+ * If the input is not recognized, it will log an error message.
+ */
 function remindOptions(m) {
     switch (m) {
         case 'picks': //read out loud all picked maps
@@ -354,16 +397,23 @@ function remindOptions(m) {
     }
 }
 
+/**
+ * Toggles the auto referee.
+ * @param {string} m - only relevant if the position 1 is 'on'.
+ * @param {boolean} force - Whether to force the auto referee on.
+ */
 function autoToggle(m, force = false) {
-    auto = (m[1] === 'on' || force);
+    auto = (m === 'on' || force);
     channel.sendMessage("Auto referee is " + (auto ? "ON" : "OFF"));
     channel.sendMessage("Remember to use '!panic' if there's any problem throughout (lobby breaking ones). Don't abuse it.");
-    if (auto)
-        if (bansLeft > 1 && (!match.ban.spanishBans || picks[0].length + picks[1].length !== match.ban.spanishPicksBeforeBan))
-            promptBan();
-        else promptPick();
+    if (auto) if (bansLeft > 1 && (!match.ban.spanishBans || picks[0].length + picks[1].length !== match.ban.spanishPicksBeforeBan)) promptBan(); else promptPick();
 }
 
+/**
+ * Processes a ban.
+ * @param {Object} msg - The message object.
+ * @param {string} msg.message - The content of the message.
+ */
 function processBan(msg) {
     lobby.abortTimer();
     if (bansLeft === match.ban.perTeam * 2) firstBan = banningTeam;
@@ -389,10 +439,38 @@ function processBan(msg) {
     }
 }
 
+/**
+ * Prompts a team to ban a map.
+ *
+ * This function sends a message to the channel, telling the banning team that they have a certain amount of time to ban a map.
+ * It then starts a timer with the ban time.
+ * Finally, it sets the match status to WAITING_FOR_BAN.
+ */
+function promptBan() {
+    channel.sendMessage(`${match.teams[banningTeam].name}, you have ${match.timers.banTime} to ban a map.`);
+    lobby.startTimer(match.timers.banTime);
+    matchStatus = WAITING_FOR_BAN;
+}
+
+/**
+ * Handles the ban cycle.
+ *
+ * This function checks the ban order. If the ban order for the remaining bans is 'B', it sets the banning team to the opposite of the first ban.
+ * Otherwise, it sets the banning team to the first ban.
+ */
+function banCycle() {
+    if (banOrder[bansLeft - 1] === 'B') banningTeam = ~firstBan; else banningTeam = firstBan;
+}
+
+/**
+ * Stuff necesary to do when a map is picked.
+ * @param {string} map - The map that has been picked.
+ */
 async function pick(map) {
     console.log(chalk.cyan(`Changing map to ${map}`));
     lobby.abortTimer();
-    matchStatus &= WAITING_FOR_START;
+    matchStatus &= ~WAITING_FOR_PICK;
+    matchStatus |= WAITING_FOR_START;
     await channel.sendMessage(`A map has been picked. You have ${match.timers.readyUp} to ready up.`);
     lobby.startTimer(match.timers.readyUp);
 }
@@ -411,6 +489,23 @@ function promptPick() {
     channel.sendMessage(`${match.teams[pickingTeam].name}, you have ${match.timers.pickWait} to pick the next map`);
     lobby.startTimer(match.timers.pickWait);
     matchStatus = WAITING_FOR_PICK;
+}
+
+/**
+ * Handles the pick cycle.
+ * @param {number[]} scores - The scores of the teams.
+ *
+ * This function first calls `lastPickResult` with the scores as argument, then prints the score.
+ * If the timer didn't run out while picking, it switches the picking team.
+ * It then clears the TIMER_RAN_OUT_WHILE_PICKING bit from the match status.
+ * Finally, it checks the score and proceeds accordingly.
+ */
+function pickCycle(scores) {
+    lastPickResult(scores);
+    printScore();
+    if (!isBitSet(matchStatus, TIMER_RAN_OUT_WHILE_PICKING)) pickingTeam ^= 1; // switch picking team
+    matchStatus &= ~TIMER_RAN_OUT_WHILE_PICKING;
+    checkScoreAndProceed();
 }
 
 /**
@@ -464,16 +559,16 @@ function checkScoreAndProceed() {
 /**
  * Handle a player leaving during a match.
  */
-function handlePlayerLeave() {
-    players--;
+function handlePlayerLeave(leave = true) {
+    if (leave) players--;
     if (isBitSet(matchStatus, PLAYING_MATCH)) {
-        console.log(chalk.red.bold("Player left during match!"));
+        leave ? console.log(chalk.red.bold("Player left during match!")) : console.log(chalk.red.bold("Player used !panic"));
         if (auto) {
             const abortLeniency = match.timers.abortLeniency * 1000; // convert to milliseconds
             const currentTime = Date.now();
             if (currentTime - matchStartedAt < abortLeniency) {
                 lobby.abortMatch();
-                channel.sendMessage("Match aborted due to player leaving within " + match.timers.abortLeniency + "s.");
+                leave ? channel.sendMessage("Match aborted due to player leaving within " + match.timers.abortLeniency + "s.") : channel.sendMessage("Match aborted due to !panic use within " + match.timers.abortLeniency + "s.");
                 matchStatus = WAITING_FOR_START;
             }
         }
@@ -501,25 +596,6 @@ function replaceSpacesWithUnderscoresInArray(arr) {
  */
 function replaceSpacesWithUnderscores(str) {
     return str.replace(/ /g, '_');
-}
-
-function pickCycle(scores) {
-    lastPickResult(scores);
-    printScore();
-    if (!isBitSet(matchStatus, TIMER_RAN_OUT_WHILE_PICKING)) pickingTeam ^= 1; // switch picking team
-    matchStatus &= ~TIMER_RAN_OUT_WHILE_PICKING;
-    checkScoreAndProceed();
-}
-
-function promptBan() {
-    channel.sendMessage(`${match.teams[banningTeam].name}, you have ${match.timers.banTime} to ban a map.`);
-    lobby.startTimer(match.timers.banTime);
-    matchStatus = WAITING_FOR_BAN;
-}
-
-function banCycle() {
-    if (banOrder[bansLeft - 1] === 'B') banningTeam = ~firstBan;
-    else banningTeam = firstBan;
 }
 
 /**
