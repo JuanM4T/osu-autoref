@@ -114,7 +114,7 @@ function setBeatmap(input, force = false) {
             } else {
                 channel.sendMessage(map.name + " is banned.");
             }
-        } else{channel.sendMessage(input + " is not in the pool.");}
+        }
     }
 }
 
@@ -211,7 +211,7 @@ function createListeners() {
     });
     lobby.on("matchFinished", (scores) => {
         if (auto) {
-            if (!match.ban.spanishBans || (picks[0].length + picks[1].length) !== match.ban.spanishPicksBeforeBan) pickCycle(scores); else promptBan();
+            pickCycle(scores);
         }
     });
     lobby.on("timerEnded", () => {
@@ -385,7 +385,8 @@ function remindOptions(m) {
         case 'maps': { //maps left
             let maps = pool.map((map) => map.code);
             let pickedMaps = picks[0].concat(picks[1]);
-            let remainingMaps = maps.filter((map) => !pickedMaps.includes(map));
+            let bannedMaps = bans[0].concat(bans[1])
+            let remainingMaps = maps.filter((map) => !pickedMaps.includes(map) && !bannedMaps.includes(map));
             channel.sendMessage("Maps left: " + remainingMaps.join(", "));
             break;
         }
@@ -474,6 +475,7 @@ function banCycle() {
  */
 async function pick(map) {
     console.log(chalk.cyan(`Changing map to ${map}`));
+    picks[pickingTeam].push(map);
     lobby.abortTimer();
     matchStatus &= ~WAITING_FOR_PICK;
     matchStatus |= WAITING_FOR_START;
@@ -557,9 +559,9 @@ function checkScoreAndProceed() {
     } else if (matchScore[BLUE] === matchWinningScore - 1 && matchScore[RED] === matchWinningScore - 1) {
         channel.sendMessage("It's time for the tiebreaker!");
         setTimeout(() => setBeatmap('TB', true), 2000); // bug: after match ends, need to wait a bit before changing map
-    } else {
-        promptPick();
-    }
+    } else if (match.ban.spanishBans && match.ban.spanishPicksBeforeBan === picks[0].length + picks[1].length) {
+        promptBan();
+    } else promptPick();
 }
 
 /**
