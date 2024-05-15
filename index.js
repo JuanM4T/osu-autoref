@@ -287,7 +287,7 @@ function createListeners() {
             channel.sendMessage("Panic command received. A ref will be checking in shortly.")
             console.log(chalk.red.bold("Something has gone really wrong!\n") + "Someone has executed the !panic command and " + chalk.yellow("auto mode has been disabled"));
             await webhook.send(`<@${config.discord.refereeRole}>, someone has executed the !panic command on match https://osu.ppy.sh/mp/${lobby.id}.\n` + "join using ` /join #mp_" + lobby.id + "` The host is " + config.username + ` and added refs are ${match.trustedPeople.toString()}.`)
-            if ((matchStatus & PLAYING_MATCH) === 0) {
+            if (isBitSet(matchStatus, PLAYING_MATCH)) {
                 lobby.abortTimer();
             } else handlePlayerLeave(false);
         }
@@ -441,8 +441,11 @@ function remindOptions(m) {
 function autoToggle(m, force = false) {
     auto = (m === 'on' || force);
     channel.sendMessage("Auto referee is " + (auto ? "ON" : "OFF"));
-    channel.sendMessage("Remember to use '!panic' if there's any problem throughout (lobby breaking ones). Don't abuse it.");
-    if (auto) if (bansLeft > 1 && (!match.ban.spanishBans || picks[0].length + picks[1].length !== match.ban.spanishPicksBeforeBan)) promptBan(); else promptPick();
+    if (auto){
+        channel.sendMessage("Remember to use '!panic' if there's any problem throughout (lobby breaking ones). Don't abuse it.");
+        if (bansLeft > 1 && (!match.ban.spanishBans || picks[0].length + picks[1].length !== match.ban.spanishPicksBeforeBan)) promptBan();
+        else promptPick();
+    }
 }
 
 /**
@@ -453,7 +456,7 @@ function processBan(msg) {
     console.log(msg);
     console.log(match.teams);
     lobby.abortTimer();
-    if (bansLeft === match.ban.perTeam * 2) firstBan = banningTeam;
+    if (bansLeft === match.ban.perTeam * 2) firstBan = banningTeam; //set who banned first, used for cycling bans.
     bansLeft--;
     bans[banningTeam].push(msg);
     maps.splice(maps.indexOf(msg), 1);
@@ -499,7 +502,8 @@ function promptBan() {
  * Otherwise, it sets the banning team to the first ban.
  */
 function banCycle() {
-    if (banOrder[bansLeft - 1] === 'B') banningTeam = firstBan ^ 1; else banningTeam = firstBan;
+    if (banOrder[bansLeft - 1] === 'B') banningTeam = firstBan ^ 1;
+    else banningTeam = firstBan;
 }
 
 /**
@@ -593,7 +597,7 @@ function checkScoreAndProceed() {
     } else if (matchScore[BLUE] === matchWinningScore - 1 && matchScore[RED] === matchWinningScore - 1) {
         channel.sendMessage("It's time for the tiebreaker!");
         setTimeout(() => setBeatmap('TB', true), 2000); // bug: after match ends, need to wait a bit before changing map
-    } else if (match.ban.spanishBans && match.ban.spanishPicksBeforeBan === picks[0].length + picks[1].length) {
+    } else if (match.ban.spanishBans && match.ban.spanishPicksBeforeBan === picks[0].length + picks[1].length && bansLeft > 0) {
         promptBan();
     } else promptPick();
 }
