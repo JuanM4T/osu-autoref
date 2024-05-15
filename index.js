@@ -93,16 +93,30 @@ async function init() {
     createListeners();
 }
 
+/**
+ * Checks if a map is banned.
+ * @param {string} mapCode - The code of the map to check.
+ * @returns {boolean} True if the map is banned, false otherwise.
+ */
 function isMapBanned(mapCode) {
     return bans[0].concat(bans[1]).includes(mapCode);
 }
 
+/**
+ * Checks if a map is picked.
+ * @param {string} mapCode - The code of the map to check.
+ * @returns {boolean} True if the map is picked, false otherwise.
+ */
 function isMapPicked(mapCode) {
     return picks[0].concat(picks[1]).includes(mapCode);
 }
 
+/**
+ * Checks if a map is available.
+ * @param {string} mapCode - The code of the map to check.
+ * @returns {boolean} True if the map is available, false otherwise.
+ */
 function isMapAvailable(mapCode) {
-    // = return !isMapPicked(mapCode) && !isMapBanned(mapCode);
     return maps.contains(mapCode);
 }
 
@@ -433,7 +447,7 @@ function autoToggle(m, force = false) {
 
 /**
  * Processes a ban.
- * @param {Object} msg - The message object.
+ * @param {String} msg - The message object.
  */
 function processBan(msg) {
     console.log(msg);
@@ -585,7 +599,8 @@ function checkScoreAndProceed() {
 }
 
 /**
- * Handle a player leaving during a match.
+ * Handles a player leaving during a match.
+ * @param {boolean} leave - Whether the player left the match or not.
  */
 function handlePlayerLeave(leave = true) {
     if (leave) players--;
@@ -627,7 +642,8 @@ function replaceSpacesWithUnderscores(str) {
 }
 
 /**
- * Close the lobby and disconnect from the Bancho server, and exits.
+ * Closes the lobby, disconnects from the Bancho server, and exits the process.
+ * @returns {Promise} A promise that resolves when the lobby has been closed and the client has disconnected.
  */
 async function close() {
     console.log(chalk.cyan("Closing..."));
