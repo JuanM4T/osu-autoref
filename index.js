@@ -9,7 +9,7 @@ const rl = readline.createInterface({
 });
 
 // Remember to fill config.json with your credentials
-const config = require('./config.example.json');
+const config = require('./config.json');
 const pool = require('./pool.json');
 const match = require('./match.json');
 
