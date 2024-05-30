@@ -110,16 +110,6 @@ function isMapBanned(mapCode) {
 function isMapPicked(mapCode) {
     return picks[0].concat(picks[1]).includes(mapCode);
 }
-
-/**
- * Checks if a map is available.
- * @param {string} mapCode - The code of the map to check.
- * @returns {boolean} True if the map is available, false otherwise.
- */
-function isMapAvailable(mapCode) {
-    return maps.contains(mapCode);
-}
-
 /**
  * Set the current beatmap based on user input.
  * @param {string} input - The user's input, which can be a map code or part of a map name.
@@ -269,6 +259,8 @@ function createListeners() {
                 channel.sendMessage(`Time has ran out for team ${match.teams[pickingTeam].name} to ban a map. ` + `The other team will ban now.`)
                 matchStatus |= TIMER_RAN_OUT_WHILE_BANNING;
                 promptBan();
+            } else {
+                console.log(chalk.yellow("Unknown match status: " + matchStatus));
             }
         }
     })
