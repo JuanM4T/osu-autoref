@@ -11,17 +11,16 @@
   },
   "ban": {
     "format": "ABBA",
-    "spanishBans": true,
-    "spanishPicksBeforeBan": 4,
-    "perTeam": 2
+    "spanishBans": false,
+    "spanishPicksBeforeBan": 1,
+    "perTeam": 0
   },
   "waitSong": 4578992,
   "trustedPeople": ["Furina"],
   "tournament": "DI",
-  "BO": 13,
+  "BO": 15,
   "teams": [
-    {"name": "Necesito ayuda :joy:", "members": ["ESCRUPULILLO", "cirno whatsapp"]},
-    {"name": "hmm'", "members": ["Lisko", "Welter"]}
+    { "name": "fentanylseeker"}		
   ]
 }
 
