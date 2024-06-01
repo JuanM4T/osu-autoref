@@ -448,7 +448,10 @@ function processBan(msg) {
     console.log(msg);
     console.log(match.teams);
     lobby.abortTimer();
-    if (bansLeft === match.ban.perTeam * 2) firstBan = banningTeam; //set who banned first, used for cycling bans.
+    if (bansLeft === match.ban.perTeam * 2){ //only execute on the first ban
+        firstBan = banningTeam; //set who banned first, used for cycling bans.
+        bansLeft -= 1;
+    } 
     bansLeft--;
     bans[banningTeam].push(msg);
     maps.splice(maps.indexOf(msg), 1);
