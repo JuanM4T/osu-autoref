@@ -13,14 +13,15 @@
     "format": "ABBA",
     "spanishBans": false,
     "spanishPicksBeforeBan": 1,
-    "perTeam": 0
+    "perTeam": 1
   },
   "waitSong": 4578992,
   "trustedPeople": ["Furina"],
-  "tournament": "DI",
-  "BO": 15,
+  "tournament": "SS24",
+  "BO": 9,
   "teams": [
-    { "name": "fentanylseeker"}		
+    {"name": "juliancala", "members": ["juliancala"]},
+    {"name": "Zodd", "members": ["Zodd"]}	
   ]
 }
 
