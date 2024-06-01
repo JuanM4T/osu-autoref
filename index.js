@@ -411,7 +411,7 @@ function remindOptions(m) {
             printScore();
             break;
         case 'maps': { //maps left
-            channel.sendMessage("Maps left: " + maps.join(", "));
+            channel.sendMessage("Maps left: " + maps.filter(map => map.slice(0, 2).toUpperCase() === "TB").join(", "));
             break;
         }
         case 'all':
