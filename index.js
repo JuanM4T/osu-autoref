@@ -31,7 +31,7 @@ let bansLeft = match.ban.perTeam * 2;
 let firstBan = 0;
 let banningTeam = 0;
 let pickingTeam = 0;
-let banOrder = match.ban.format.split("").reverse().join(""); //hack
+let banOrder = match.ban.format.split("").reverse().slice(1).join("");
 let matchStartedAt;
 let players = 0;
 
@@ -81,7 +81,7 @@ async function init() {
     await lobby.addRef(match.trustedPeople);
     match.trustedPeople.push(config.username);
 
-    console.log(chalk.bold.green("LobbyInterface created!"));
+    console.log(chalk.bold.green("Lobby created!"));
     console.log(chalk.bold.cyan(`Name: ${lobby.name}, password: ${password}`));
     console.log(chalk.bold.cyan(`Multiplayer link: https://osu.ppy.sh/mp/${lobby.id}`));
     console.log(chalk.cyan(`Open in your irc client with /join #mp_${lobby.id}`));
@@ -450,7 +450,6 @@ function processBan(msg) {
     lobby.abortTimer();
     if (bansLeft === match.ban.perTeam * 2){ //only execute on the first ban
         firstBan = banningTeam; //set who banned first, used for cycling bans.
-        bansLeft -= 1;
     } 
     bansLeft--;
     bans[banningTeam].push(msg);
